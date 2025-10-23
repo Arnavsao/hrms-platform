@@ -1,0 +1,41 @@
+# FastAPI and ASGI server
+fastapi==0.110.0
+uvicorn[standard]==0.27.1
+python-multipart==0.0.9
+
+# AI and LLM
+openai==1.12.0
+google-generativeai==0.4.0
+
+# Data processing
+pydantic==2.6.3
+pydantic-settings==2.2.1
+python-dotenv==1.0.1
+
+# HTTP requests for scraping
+httpx>=0.24,<0.26
+beautifulsoup4==4.12.3
+lxml==5.1.0
+
+# PDF and document parsing
+pypdf2==3.0.1
+python-docx==1.1.0
+
+# Database
+supabase==2.4.0
+psycopg2-binary==2.9.9
+
+# Testing
+pytest==8.1.1
+pytest-asyncio==0.23.5
+pytest-cov==4.1.0
+
+# Code quality
+black==24.2.0
+flake8==7.0.0
+mypy==1.8.0
+
+# Utilities
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+

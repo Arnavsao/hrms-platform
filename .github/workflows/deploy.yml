@@ -1,0 +1,107 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  # Deploy Frontend to Vercel
+  deploy-frontend:
+    name: Deploy Frontend to Vercel
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Install Vercel CLI
+        run: npm install -g vercel
+      
+      - name: Deploy to Vercel
+        working-directory: ./frontend
+        run: |
+          vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+          vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+          vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      
+      - name: Deployment successful
+        run: echo "Frontend deployed successfully to Vercel!"
+
+  # Deploy Backend to Render
+  deploy-backend:
+    name: Deploy Backend to Render
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Trigger Render deployment
+        run: |
+          curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+      
+      - name: Wait for deployment
+        run: sleep 60
+      
+      - name: Check deployment status
+        run: |
+          echo "Backend deployment triggered on Render"
+          echo "Check Render dashboard for deployment status"
+
+  # Run database migrations
+  migrate-database:
+    name: Run Database Migrations
+    runs-on: ubuntu-latest
+    needs: [deploy-frontend, deploy-backend]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Supabase CLI
+        run: |
+          npm install -g supabase
+      
+      - name: Run migrations
+        run: |
+          echo "Database migrations should be run via Supabase dashboard"
+          echo "Or configure Supabase CLI authentication for automated migrations"
+        # Uncomment and configure when ready:
+        # supabase db push --db-url ${{ secrets.DATABASE_URL }}
+      
+      - name: Migration info
+        run: |
+          echo "Migration files are located in: supabase/migrations/"
+          echo "Apply them manually via Supabase dashboard or CLI"
+
+  # Deployment status notification
+  deployment-status:
+    name: Deployment Status
+    runs-on: ubuntu-latest
+    needs: [deploy-frontend, deploy-backend, migrate-database]
+    if: always()
+    
+    steps:
+      - name: Report deployment status
+        run: |
+          echo "=== Deployment Status ==="
+          echo "Frontend: ${{ needs.deploy-frontend.result }}"
+          echo "Backend: ${{ needs.deploy-backend.result }}"
+          echo "Migrations: ${{ needs.migrate-database.result }}"
+          
+          if [ "${{ needs.deploy-frontend.result }}" = "success" ] && [ "${{ needs.deploy-backend.result }}" = "success" ]; then
+            echo "✅ Deployment completed successfully!"
+          else
+            echo "❌ Deployment failed. Check logs for details."
+            exit 1
+          fi
+
