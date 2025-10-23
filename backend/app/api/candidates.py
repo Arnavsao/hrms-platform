@@ -1,21 +1,28 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
+from supabase import Client
 from app.models.candidate import ResumeUploadResponse, Candidate
 from app.services.ai_parser import parse_resume
 from app.core.logging import get_logger
+from app.core.supabase_client import get_supabase_client
+import uuid
 
 logger = get_logger(__name__)
 router = APIRouter()
 
 @router.post("/parse", response_model=ResumeUploadResponse)
-async def upload_and_parse_resume(file: UploadFile = File(...)):
+async def upload_and_parse_resume(
+    file: UploadFile = File(...),
+    supabase: Client = Depends(get_supabase_client)
+):
     """
     Upload and parse a candidate's resume.
     
     This endpoint:
     1. Accepts a resume file (PDF/DOC/DOCX)
-    2. Uses AI to extract structured data
-    3. Scrapes links found in the resume
-    4. Stores the candidate in the database
+    2. Uploads the resume to Supabase Storage
+    3. Uses AI to extract structured data
+    4. Scrapes links found in the resume
+    5. Stores the candidate in the database
     """
     try:
         logger.info(f"Parsing resume: {file.filename}")
@@ -23,8 +30,19 @@ async def upload_and_parse_resume(file: UploadFile = File(...)):
         # Read file content
         content = await file.read()
         
+        # Generate a unique file name
+        file_ext = file.filename.split('.')[-1]
+        unique_filename = f"{uuid.uuid4()}.{file_ext}"
+        
+        # Upload to Supabase Storage
+        storage_path = f"resumes/{unique_filename}"
+        supabase.storage.from_("resumes").upload(file=content, path=storage_path, file_options={"content-type": file.content_type})
+        
+        # Get public URL
+        resume_url = supabase.storage.from_("resumes").get_public_url(storage_path)
+        
         # Parse resume using AI service
-        result = await parse_resume(content, file.filename)
+        result = await parse_resume(content, file.filename, resume_url)
         
         return result
     

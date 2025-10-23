@@ -1,6 +1,8 @@
 from typing import Dict, List
+from supabase import Client
 from app.core.config import settings
 from app.core.logging import get_logger
+from app.core.supabase_client import get_supabase_client
 import google.generativeai as genai
 
 logger = get_logger(__name__)
@@ -17,19 +19,19 @@ async def match_candidate_to_job(candidate_id: str, job_id: str) -> Dict:
     - highlights: Strengths, weaknesses, and recommendations
     """
     try:
-        # TODO: Fetch candidate data from database
-        # For now, using placeholder data
-        candidate_profile = {
-            "name": "John Doe",
-            "skills": ["Python", "FastAPI", "Machine Learning", "SQL"],
-            "experience": "5 years in software development",
-        }
+        supabase = get_supabase_client()
         
-        # TODO: Fetch job data from database
-        job_description = {
-            "title": "Senior Software Engineer",
-            "requirements": "Python, FastAPI, AWS, 5+ years experience",
-        }
+        # Fetch candidate data from database
+        candidate_response = supabase.table("candidates").select("parsed_data, digital_footprints(github_data, linkedin_data)").eq("id", candidate_id).single().execute()
+        if not candidate_response.data:
+            raise ValueError(f"Candidate with id {candidate_id} not found.")
+        candidate_profile = candidate_response.data
+        
+        # Fetch job data from database
+        job_response = supabase.table("jobs").select("title, description, requirements").eq("id", job_id).single().execute()
+        if not job_response.data:
+            raise ValueError(f"Job with id {job_id} not found.")
+        job_description = job_response.data
         
         # Create AI model
         model = genai.GenerativeModel('gemini-pro')

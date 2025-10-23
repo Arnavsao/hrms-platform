@@ -2,10 +2,13 @@ import io
 from typing import Dict, Any
 from PyPDF2 import PdfReader
 from docx import Document
+from supabase import Client
+
 from app.models.candidate import ResumeUploadResponse, ParsedData
 from app.services.link_scraper import scrape_links
 from app.core.config import settings
 from app.core.logging import get_logger
+from app.core.supabase_client import get_supabase_client
 import google.generativeai as genai
 
 logger = get_logger(__name__)
@@ -93,7 +96,48 @@ async def parse_resume_with_ai(text: str) -> ParsedData:
         logger.error(f"Error parsing resume with AI: {str(e)}")
         raise
 
-async def parse_resume(content: bytes, filename: str) -> ResumeUploadResponse:
+async def store_candidate_data(parsed_data: ParsedData, resume_url: str, supabase: Client) -> str:
+    """
+    Stores candidate and digital footprint data in the database.
+    Creates a new candidate or updates an existing one based on email.
+    """
+    # Check if candidate exists
+    existing_candidate = supabase.table("candidates").select("id").eq("email", parsed_data.email).execute()
+    
+    candidate_data = {
+        "name": parsed_data.name,
+        "email": parsed_data.email,
+        "resume_url": resume_url,
+        "parsed_data": parsed_data.dict()
+    }
+
+    if existing_candidate.data:
+        # Update existing candidate
+        candidate_id = existing_candidate.data[0]['id']
+        supabase.table("candidates").update(candidate_data).eq("id", candidate_id).execute()
+        logger.info(f"Updated existing candidate: {candidate_id}")
+    else:
+        # Create new candidate
+        new_candidate = supabase.table("candidates").insert(candidate_data).execute()
+        candidate_id = new_candidate.data[0]['id']
+        logger.info(f"Created new candidate: {candidate_id}")
+        
+    # Scrape links and store digital footprint
+    if parsed_data.links:
+        enriched_data = await scrape_links(parsed_data.links)
+        footprint_data = {
+            "candidate_id": candidate_id,
+            "github_data": enriched_data.get("github"),
+            "linkedin_data": enriched_data.get("linkedin"),
+            "portfolio_data": enriched_data.get("portfolio"),
+        }
+        # Upsert to handle existing footprints
+        supabase.table("digital_footprints").upsert(footprint_data, on_conflict="candidate_id").execute()
+        logger.info(f"Stored digital footprint for candidate: {candidate_id}")
+        
+    return candidate_id
+
+async def parse_resume(content: bytes, filename: str, resume_url: str) -> ResumeUploadResponse:
     """
     Main function to parse resume.
     
@@ -101,9 +145,12 @@ async def parse_resume(content: bytes, filename: str) -> ResumeUploadResponse:
     1. Extract text from file
     2. Use AI to parse structured data
     3. Scrape links found in resume
-    4. Store candidate in database
+    4. Store candidate and footprint data in database
     """
     try:
+        # Get supabase client
+        supabase = get_supabase_client()
+
         # Extract text based on file type
         file_ext = filename.lower().split('.')[-1]
         
@@ -117,13 +164,8 @@ async def parse_resume(content: bytes, filename: str) -> ResumeUploadResponse:
         # Parse with AI
         parsed_data = await parse_resume_with_ai(text)
         
-        # Scrape links if found
-        if parsed_data.links:
-            enriched_data = await scrape_links(parsed_data.links)
-            # TODO: Store enriched data in digital_footprints table
-        
-        # TODO: Store candidate in Supabase database
-        candidate_id = "temp-id-" + parsed_data.email.split('@')[0]
+        # Store candidate and enriched data in Supabase
+        candidate_id = await store_candidate_data(parsed_data, resume_url, supabase)
         
         return ResumeUploadResponse(
             candidate_id=candidate_id,

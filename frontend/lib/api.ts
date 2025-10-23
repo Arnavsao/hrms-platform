@@ -102,6 +102,36 @@ export const api = {
     return response.data;
   },
 
+  // List all jobs
+  listJobs: async () => {
+    const response = await apiClient.get('/api/jobs/');
+    return response.data;
+  },
+  
+  // Create a new job
+  createJob: async (jobData: any) => {
+    const response = await apiClient.post('/api/jobs/', jobData);
+    return response.data;
+  },
+  
+  // Update a job
+  updateJob: async (jobId: string, jobData: any) => {
+    const response = await apiClient.put(`/api/jobs/${jobId}`, jobData);
+    return response.data;
+  },
+  
+  // Delete a job
+  deleteJob: async (jobId: string) => {
+    const response = await apiClient.delete(`/api/jobs/${jobId}`);
+    return response.data;
+  },
+
+  // List all applications
+  listApplications: async () => {
+    const response = await apiClient.get('/api/applications/');
+    return response.data;
+  },
+
   // Get application details
   getApplication: async (applicationId: string) => {
     const response = await apiClient.get(`/api/applications/${applicationId}`);

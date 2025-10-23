@@ -1,16 +1,26 @@
-export default function RecruiterDashboard() {
+'use client';
+
+import { JobsTab } from '@/components/recruiter/JobsTab';
+import { CandidatesTab } from '@/components/recruiter/CandidatesTab';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+
+export default function RecruiterDashboardPage() {
+  
   return (
-    <div className="min-h-screen p-8">
-      <div className="max-w-7xl mx-auto">
+    <div className="p-8">
         <h1 className="text-3xl font-bold mb-6">Recruiter Dashboard</h1>
-        <div className="grid gap-6">
-          {/* Candidate list and scoring interface will be implemented here */}
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h2 className="text-xl font-semibold mb-4">Candidates Overview</h2>
-            <p className="text-gray-600">Dashboard interface - To be implemented</p>
-          </div>
-        </div>
-      </div>
+        <Tabs defaultValue="candidates">
+            <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="candidates">Candidates</TabsTrigger>
+                <TabsTrigger value="jobs">Manage Jobs</TabsTrigger>
+            </TabsList>
+            <TabsContent value="candidates">
+                <CandidatesTab />
+            </TabsContent>
+            <TabsContent value="jobs">
+                <JobsTab />
+            </TabsContent>
+        </Tabs>
     </div>
   );
 }
