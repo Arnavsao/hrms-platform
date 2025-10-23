@@ -1,9 +1,10 @@
 name: Deploy to Production
 
-on:
-  push:
-    branches: [ main ]
-  workflow_dispatch:
+# Disabled - uncomment to enable deployment workflow
+# on:
+#   push:
+#     branches: [ main ]
+#   workflow_dispatch:
 
 jobs:
   # Deploy Frontend to Vercel

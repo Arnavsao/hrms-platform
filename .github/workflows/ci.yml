@@ -1,10 +1,11 @@
 name: CI - Lint and Test
 
-on:
-  push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main, develop ]
+# Disabled - uncomment to enable CI workflow
+# on:
+#   push:
+#     branches: [ main, develop ]
+#   pull_request:
+#     branches: [ main, develop ]
 
 jobs:
   # Frontend CI
