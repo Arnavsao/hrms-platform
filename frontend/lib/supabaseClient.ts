@@ -1,12 +1,13 @@
-import { createClient } from '@supabase/supabase-js';
+import { createBrowserClient } from '@supabase/ssr';
 
 // Get environment variables with fallbacks for build time
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
 // Create a single Supabase client instance for the browser
-// This client uses the anon key and handles auth automatically
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Using @supabase/ssr ensures the session is persisted to cookies
+// so middleware can read the auth state reliably
+export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey);
 
 // Type definitions for database tables
 export type Database = {

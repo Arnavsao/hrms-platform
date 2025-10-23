@@ -65,10 +65,17 @@ async def get_application(
 
 
 @router.get("/")
-async def list_applications(supabase: Client = Depends(get_supabase_client)):
-    """List all applications"""
+async def list_applications(
+    job_id: str | None = None,
+    supabase: Client = Depends(get_supabase_client)
+):
+    """List all applications, optionally filtered by job_id"""
     try:
-        response = supabase.table("applications").select("*").order("created_at", desc=True).execute()
+        query = supabase.table("applications").select("*").order("created_at", desc=True)
+        if job_id:
+            query = query.eq("job_id", job_id)
+            
+        response = query.execute()
         return response.data
     except Exception as e:
         logger.error(f"Error listing applications: {str(e)}")

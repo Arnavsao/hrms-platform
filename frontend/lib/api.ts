@@ -127,8 +127,9 @@ export const api = {
   },
 
   // List all applications
-  listApplications: async () => {
-    const response = await apiClient.get('/api/applications/');
+  listApplications: async (jobId?: string | null) => {
+    const params = jobId ? { job_id: jobId } : {};
+    const response = await apiClient.get('/api/applications/', { params });
     return response.data;
   },
 

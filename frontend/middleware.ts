@@ -50,29 +50,42 @@ export async function middleware(request: NextRequest) {
   );
 
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    data: { user },
+  } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
 
+  // If a logged-in user lands on the home page, redirect them to their dashboard
+  if (user && pathname === '/') {
+    const userRole = user.user_metadata?.role;
+    if (userRole === UserRole.ADMIN) {
+        return NextResponse.redirect(new URL('/admin', request.url));
+    }
+    if (userRole === UserRole.RECRUITER) {
+        return NextResponse.redirect(new URL('/recruiter', request.url));
+    }
+    // Default for candidates
+    return NextResponse.redirect(new URL('/candidates/upload', request.url));
+  }
+
   // If user is not logged in and trying to access a protected route, redirect to login
-  if (!session && protectedRoutes.some(route => pathname.startsWith(route))) {
+  if (!user && protectedRoutes.some(route => pathname.startsWith(route))) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  // If user is logged in and trying to access an auth route, redirect to dashboard
-  if (session && authRoutes.some(route => pathname.startsWith(route))) {
+  // If user is logged in and trying to access an auth route, redirect them away
+  if (user && authRoutes.some(route => pathname.startsWith(route))) {
     return NextResponse.redirect(new URL('/', request.url));
   }
   
-  // Role-based redirects
-  if (session) {
-    const userRole = session.user.user_metadata?.role;
+  // Role-based route protection
+  if (user) {
+    const userRole = user.user_metadata?.role;
     if (pathname.startsWith('/admin') && userRole !== UserRole.ADMIN) {
-      return NextResponse.redirect(new URL('/', request.url));
+      return NextResponse.redirect(new URL('/', request.url)); // Not authorized
     }
     if (pathname.startsWith('/recruiter') && userRole !== UserRole.RECRUITER && userRole !== UserRole.ADMIN) {
-      return NextResponse.redirect(new URL('/', request.url));
+      return NextResponse.redirect(new URL('/', request.url)); // Not authorized
     }
   }
 

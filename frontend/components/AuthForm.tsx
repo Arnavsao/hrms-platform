@@ -57,7 +57,7 @@ export function AuthForm({ isLogin }: AuthFormProps) {
       } else {
         await auth.signUp(values.email, values.password, UserRole.CANDIDATE);
       }
-      router.push('/'); // Redirect to a protected page after auth
+      router.refresh(); // This will re-run the middleware which will handle all redirects.
     } catch (err: any) {
       setError(err.message || 'An unexpected error occurred.');
     } finally {

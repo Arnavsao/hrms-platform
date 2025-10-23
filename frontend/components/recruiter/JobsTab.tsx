@@ -94,7 +94,9 @@ export function JobsTab() {
                     <DropdownMenuContent align="end">
                       <DropdownMenuLabel>Actions</DropdownMenuLabel>
                       <DropdownMenuItem onClick={() => router.push(`/jobs/edit/${job.id}`)}>Edit</DropdownMenuItem>
-                      <DropdownMenuItem>View Applications</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => router.push(`/recruiter?jobId=${job.id}`)}>
+                        View Applications
+                      </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={() => handleDeleteJob(job.id)} className="text-red-600">
                         Delete

@@ -28,17 +28,32 @@ interface Application {
     created_at: string;
 }
 
-export function CandidatesTab() {
+interface CandidatesTabProps {
+    jobId: string | null;
+}
+
+export function CandidatesTab({ jobId }: CandidatesTabProps) {
   const [applications, setApplications] = useState<Application[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [jobTitle, setJobTitle] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
     async function fetchApplications() {
+      setIsLoading(true);
       try {
-        // TODO: The API should return joined data with candidate and job names
-        const data = await api.listApplications();
+        // Fetch applications, optionally filtered by jobId
+        const data = await api.listApplications(jobId);
         setApplications(data);
+
+        // If filtering by a job, fetch its details to display the title
+        if (jobId) {
+            const jobData = await api.getJob(jobId);
+            setJobTitle(jobData.title);
+        } else {
+            setJobTitle(null);
+        }
+
       } catch (error) {
         console.error("Failed to fetch applications", error);
       } finally {
@@ -46,7 +61,7 @@ export function CandidatesTab() {
       }
     }
     fetchApplications();
-  }, []);
+  }, [jobId]);
 
   const getScoreBadgeVariant = (score: number) => {
     if (score > 85) return "success";
@@ -62,11 +77,13 @@ export function CandidatesTab() {
   return (
     <div className="p-4">
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-semibold">Candidate Applications</h2>
+        <h2 className="text-2xl font-semibold">
+            {jobTitle ? `Applications for ${jobTitle}` : 'All Candidate Applications'}
+        </h2>
       </div>
       
       {applications.length === 0 ? (
-        <p>No candidates have applied yet.</p>
+        <p>{jobId ? 'No one has applied to this job yet.' : 'No candidates have applied yet.'}</p>
       ) : (
         <Table>
           <TableHeader>
