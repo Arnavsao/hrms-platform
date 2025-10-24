@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     # AI Configuration
     OPENROUTER_API_KEY: str = ""
     GEMINI_API_KEY: str
-    AI_MODEL: str = "google/gemini-pro"
+    AI_MODEL: str = "google/gemini-2.0-flash"
     AI_TEMPERATURE: float = 0.7
     AI_MAX_TOKENS: int = 2048
     

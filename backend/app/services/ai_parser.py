@@ -48,7 +48,7 @@ async def parse_resume_with_ai(text: str) -> ParsedData:
     """
     try:
         # Create AI model instance
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel('gemini-2.0-flash')
         
         # Craft prompt for structured extraction
         prompt = f"""

@@ -3,6 +3,12 @@ import axios from 'axios';
 // API base URL from environment variable
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
+// Validate API URL
+if (!API_BASE_URL || API_BASE_URL === 'undefined') {
+  console.error('NEXT_PUBLIC_API_URL is not set. Please create a .env.local file with NEXT_PUBLIC_API_URL=http://localhost:8000');
+  throw new Error('API URL is not configured. Please set NEXT_PUBLIC_API_URL in your environment variables.');
+}
+
 // Create axios instance with default configuration
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -10,6 +16,32 @@ const apiClient = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+// Add request interceptor for debugging
+apiClient.interceptors.request.use(
+  (config) => {
+    console.log(`Making API request to: ${config.baseURL}${config.url}`);
+    return config;
+  },
+  (error) => {
+    console.error('API request error:', error);
+    return Promise.reject(error);
+  }
+);
+
+// Add response interceptor for error handling
+apiClient.interceptors.response.use(
+  (response) => {
+    return response;
+  },
+  (error) => {
+    console.error('API response error:', error.response?.data || error.message);
+    if (error.code === 'ERR_NETWORK') {
+      console.error('Network error: Make sure your backend server is running on', API_BASE_URL);
+    }
+    return Promise.reject(error);
+  }
+);
 
 // Types for API requests and responses
 export interface ParseResumeRequest {

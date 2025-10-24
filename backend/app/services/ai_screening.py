@@ -12,7 +12,7 @@ genai.configure(api_key=settings.GEMINI_API_KEY)
 async def generate_screening_questions(job_role: str, candidate_profile: Dict) -> List[str]:
     """Generate adaptive screening questions based on job and candidate"""
     try:
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel('gemini-2.0-flash')
         
         prompt = f"""
         Generate 3 screening interview questions for a candidate.
@@ -56,7 +56,7 @@ async def generate_screening_questions(job_role: str, candidate_profile: Dict) -
 async def evaluate_screening_responses(questions: List[str], responses: List[str]) -> ScreeningEvaluation:
     """Evaluate candidate's responses using AI"""
     try:
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel('gemini-2.0-flash')
         
         # Build Q&A pairs
         qa_pairs = "\n\n".join([

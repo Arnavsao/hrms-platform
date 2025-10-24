@@ -5,7 +5,7 @@ python-multipart==0.0.9
 
 # AI and LLM
 openai==1.12.0
-google-generativeai==0.4.0
+google-generativeai==0.8.5
 
 # Data processing
 pydantic==2.6.3
