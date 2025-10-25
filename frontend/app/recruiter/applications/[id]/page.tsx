@@ -50,25 +50,33 @@ export default function ApplicationDetailPage({ params }: { params: { id: string
     }
 
     return (
-        <div className="p-8 space-y-8">
-            <div className="flex justify-between items-start">
-                <div>
-                    <h1 className="text-3xl font-bold">Candidate Application</h1>
-                    <p className="text-muted-foreground">Review the candidate's profile and AI analysis.</p>
-                </div>
-                <ScreeningDialog applicationId={application.id} />
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 space-y-8">
-                    <CandidateProfileCard candidate={application.candidate} />
-                    <DigitalFootprintCard digital_footprint={application.digital_footprint} />
-                </div>
+        <div className="min-h-screen bg-gray-50">
+            <div className="container mx-auto px-6 py-8 max-w-7xl">
                 <div className="space-y-8">
-                    <AiAnalysisCard 
-                        fit_score={application.fit_score}
-                        highlights={application.highlights}
-                    />
+                    {/* Header */}
+                    <div className="bg-white rounded-lg shadow-sm p-8">
+                        <div className="flex justify-between items-start">
+                            <div>
+                                <h1 className="text-3xl font-bold text-gray-900 mb-3">Candidate Application</h1>
+                                <p className="text-gray-600 text-lg">Review the candidate&apos;s profile and AI analysis.</p>
+                            </div>
+                            <ScreeningDialog applicationId={application.id} />
+                        </div>
+                    </div>
+
+                    {/* Content Grid */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <div className="lg:col-span-2 space-y-8">
+                            <CandidateProfileCard candidate={application.candidate} />
+                            <DigitalFootprintCard digital_footprint={application.digital_footprint} />
+                        </div>
+                        <div className="space-y-8">
+                            <AiAnalysisCard 
+                                fit_score={application.fit_score}
+                                highlights={application.highlights}
+                            />
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

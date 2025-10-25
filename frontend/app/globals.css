@@ -58,3 +58,147 @@
   }
 }
 
+@layer components {
+  /* Mobile-first responsive utilities */
+  .container {
+    @apply mx-auto px-4 sm:px-6 lg:px-8;
+  }
+  
+  /* Page layout utilities */
+  .page-container {
+    @apply min-h-screen bg-gray-50;
+  }
+  
+  .page-content {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8;
+  }
+  
+  .page-header {
+    @apply bg-white rounded-xl shadow-sm border border-gray-200 p-8;
+  }
+  
+  .page-section {
+    @apply bg-white rounded-xl shadow-sm border border-gray-200 p-8;
+  }
+  
+  /* Improved mobile navigation */
+  .mobile-nav {
+    @apply fixed inset-0 z-50 lg:hidden;
+  }
+  
+  /* Better mobile table handling */
+  .mobile-table {
+    @apply block lg:hidden;
+  }
+  
+  .desktop-table {
+    @apply hidden lg:block;
+  }
+  
+  /* Enhanced card responsiveness */
+  .responsive-card {
+    @apply w-full p-4 sm:p-6;
+  }
+  
+  /* Mobile-friendly buttons */
+  .mobile-button {
+    @apply w-full sm:w-auto;
+  }
+  
+  /* Improved spacing for mobile */
+  .mobile-spacing {
+    @apply space-y-4 sm:space-y-6;
+  }
+  
+  /* Better mobile text sizing */
+  .mobile-text {
+    @apply text-sm sm:text-base;
+  }
+  
+  .mobile-heading {
+    @apply text-xl sm:text-2xl lg:text-3xl;
+  }
+  
+  /* Mobile-friendly grid layouts */
+  .mobile-grid {
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4;
+  }
+  
+  /* Enhanced mobile forms */
+  .mobile-form {
+    @apply space-y-4 sm:space-y-6;
+  }
+  
+  .mobile-input {
+    @apply w-full px-3 py-2 text-base;
+  }
+  
+  /* Mobile-optimized modals and dialogs */
+  .mobile-modal {
+    @apply fixed inset-0 z-50 flex items-center justify-center p-4;
+  }
+  
+  .mobile-dialog {
+    @apply w-full max-w-md mx-auto bg-white rounded-lg shadow-xl;
+  }
+  
+  /* Better mobile navigation */
+  .mobile-nav-item {
+    @apply flex items-center px-3 py-2 text-sm font-medium rounded-md;
+  }
+  
+  /* Mobile-friendly status indicators */
+  .mobile-status {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+  
+  /* Enhanced mobile loading states */
+  .mobile-loading {
+    @apply flex items-center justify-center p-8;
+  }
+  
+  /* Mobile-optimized empty states */
+  .mobile-empty {
+    @apply text-center p-8;
+  }
+  
+  /* Better mobile touch targets */
+  .mobile-touch {
+    @apply min-h-[44px] min-w-[44px];
+  }
+  
+  /* Mobile-friendly shadows and borders */
+  .mobile-shadow {
+    @apply shadow-sm sm:shadow-md;
+  }
+  
+  .mobile-border {
+    @apply border border-gray-200 rounded-lg;
+  }
+}
+
+@layer utilities {
+  /* Custom mobile utilities */
+  .safe-area-inset {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+  
+  /* Better mobile scrolling */
+  .mobile-scroll {
+    @apply overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100;
+  }
+  
+  /* Mobile-optimized animations */
+  .mobile-animate {
+    @apply transition-all duration-200 ease-in-out;
+  }
+  
+  /* Better mobile focus states */
+  .mobile-focus {
+    @apply focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2;
+  }
+}
+

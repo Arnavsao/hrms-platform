@@ -39,8 +39,14 @@ export default function EditJobPage({ params }: { params: { id: string } }) {
     }
 
     return (
-        <div className="min-h-screen flex flex-col items-center justify-center p-8 bg-gray-50 dark:bg-gray-900">
-            <JobForm initialData={job} onSubmit={handleUpdateJob} />
+        <div className="min-h-screen bg-gray-50">
+            <div className="container mx-auto px-4 py-8 max-w-4xl">
+                <div className="mb-8">
+                    <h1 className="text-3xl font-bold text-gray-900 mb-2">Edit Job</h1>
+                    <p className="text-gray-600">Update the job details below</p>
+                </div>
+                <JobForm initialData={job} onSubmit={handleUpdateJob} />
+            </div>
         </div>
     );
 }
