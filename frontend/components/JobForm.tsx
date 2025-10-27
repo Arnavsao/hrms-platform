@@ -56,11 +56,11 @@ export function JobForm({ initialData, onSubmit }: JobFormProps) {
   }
 
   return (
-    <Card className="w-full max-w-2xl">
-      <CardHeader>
-        <CardTitle>{initialData ? 'Edit Job' : 'Create a New Job'}</CardTitle>
+    <Card className="w-full shadow-sm">
+      <CardHeader className="pb-6">
+        <CardTitle className="text-2xl">{initialData ? 'Edit Job' : 'Create a New Job'}</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pt-0">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
             <FormField
@@ -102,10 +102,12 @@ export function JobForm({ initialData, onSubmit }: JobFormProps) {
                 </FormItem>
               )}
             />
-            <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>
+            <div className="flex justify-end gap-3 pt-6 border-t">
+                <Button type="button" variant="outline" onClick={() => router.back()}>
+                    Cancel
+                </Button>
                 <Button type="submit" disabled={isLoading}>
-                {isLoading ? 'Saving...' : 'Save Job'}
+                    {isLoading ? 'Saving...' : 'Save Job'}
                 </Button>
             </div>
           </form>

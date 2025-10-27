@@ -12,7 +12,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Badge } from '../ui/badge';
+import { Badge } from '@/components/ui/badge';
 import { ThumbsUp, ThumbsDown, BrainCircuit } from 'lucide-react';
 
 interface ScreeningDialogProps {
@@ -69,20 +69,6 @@ export function ScreeningDialog({ applicationId }: ScreeningDialogProps) {
                 <p className="text-sm text-muted-foreground">{evaluation.summary}</p>
             </div>
 
-            <div className='flex gap-4'>
-                <div>
-                    <h4 className="font-semibold flex items-center gap-2"><ThumbsUp className="h-4 w-4 text-green-500" /> Strengths</h4>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                        {evaluation.strengths.map((s, i) => <Badge key={i} variant="success">{s}</Badge>)}
-                    </div>
-                </div>
-                <div>
-                    <h4 className="font-semibold flex items-center gap-2"><ThumbsDown className="h-4 w-4 text-red-500" /> Weaknesses</h4>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                        {evaluation.weaknesses.map((w, i) => <Badge key={i} variant="destructive">{w}</Badge>)}
-                    </div>
-                </div>
-            </div>
 
             <div>
                 <h4 className="font-semibold">Transcript</h4>

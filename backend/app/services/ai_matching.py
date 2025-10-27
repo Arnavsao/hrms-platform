@@ -34,7 +34,7 @@ async def match_candidate_to_job(candidate_id: str, job_id: str) -> Dict:
         job_description = job_response.data
         
         # Create AI model
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel('gemini-2.0-flash')
         
         # Craft matching prompt
         prompt = f"""
