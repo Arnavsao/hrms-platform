@@ -13,7 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTrigger } from '../ui/sheet';
 import { Badge } from '@/components/ui/badge';
 import {
   Menu,
@@ -46,9 +46,9 @@ export function Navigation({ className }: NavigationProps) {
   const navigationItems = [
     {
       name: 'Dashboard',
-      href: userRole === 'admin' ? '/admin' : userRole === 'recruiter' ? '/recruiter' : '/candidates/upload',
+      href: userRole === 'admin' ? '/admin' : userRole === 'recruiter' ? '/recruiter' : '/candidate',
       icon: Home,
-      current: pathname === '/admin' || pathname === '/recruiter' || pathname === '/candidates/upload',
+      current: pathname === '/admin' || pathname === '/recruiter' || pathname === '/candidate',
     },
     ...(userRole === 'recruiter' || userRole === 'admin' ? [
       {
