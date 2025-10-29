@@ -59,9 +59,9 @@ export function Navigation({ className }: NavigationProps) {
       },
       {
         name: 'Candidates',
-        href: '/candidates',
+        href: '/candidate',
         icon: Users,
-        current: pathname.startsWith('/candidates'),
+        current: pathname.startsWith('/candidate'),
       },
       {
         name: 'Applications',
@@ -81,9 +81,9 @@ export function Navigation({ className }: NavigationProps) {
     ...(userRole === 'candidate' ? [
       {
         name: 'Upload Resume',
-        href: '/candidates/upload',
+        href: '/candidate',
         icon: Upload,
-        current: pathname.startsWith('/candidates/upload'),
+        current: pathname.startsWith('/candidate'),
       },
       {
         name: 'Browse Jobs',
@@ -143,7 +143,9 @@ export function Navigation({ className }: NavigationProps) {
                             variant={item.current ? 'secondary' : 'ghost'}
                             className={cn(
                               'w-full justify-start h-12 px-4',
-                              item.current && 'bg-secondary'
+                              item.current
+                                ? 'bg-secondary text-secondary-foreground'
+                                : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
                             )}
                             onClick={() => {
                               router.push(item.href);
@@ -202,7 +204,9 @@ export function Navigation({ className }: NavigationProps) {
                   variant={item.current ? 'secondary' : 'ghost'}
                   className={cn(
                     'inline-flex items-center px-4 py-2 text-sm font-medium rounded-md transition-colors',
-                    item.current && 'bg-secondary text-secondary-foreground'
+                    item.current
+                      ? 'bg-secondary text-secondary-foreground'
+                      : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
                   )}
                   onClick={() => router.push(item.href)}
                 >

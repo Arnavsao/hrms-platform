@@ -28,3 +28,26 @@ class MatchResponse(BaseModel):
     """Response with matching score and highlights"""
     fit_score: float
     highlights: dict
+
+
+class ApplicationStatusUpdate(BaseModel):
+    """Payload to update application status"""
+    status: str
+
+
+class ApplicationDetail(BaseModel):
+    """Application with joined candidate, job and optional digital footprint"""
+    id: uuid.UUID
+    candidate_id: uuid.UUID
+    job_id: uuid.UUID
+    fit_score: Optional[float] = None
+    highlights: Optional[Dict[str, Any]] = None
+    status: str
+    created_at: datetime
+    updated_at: datetime
+    candidate: Optional[Dict[str, Any]] = None
+    job: Optional[Dict[str, Any]] = None
+    digital_footprint: Optional[Dict[str, Any]] = None
+
+    class Config:
+        from_attributes = True

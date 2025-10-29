@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { UserRole } from './lib/auth';
 
-const protectedRoutes = ['/recruiter', '/admin', '/candidates', '/jobs'];
+const protectedRoutes = ['/recruiter', '/admin', '/candidate', '/jobs'];
 const authRoutes = ['/login', '/signup'];
 
 export async function middleware(request: NextRequest) {
@@ -64,8 +64,8 @@ export async function middleware(request: NextRequest) {
     if (userRole === UserRole.RECRUITER) {
         return NextResponse.redirect(new URL('/recruiter', request.url));
     }
-    // Default for candidates
-    return NextResponse.redirect(new URL('/candidates/upload', request.url));
+    // Default for candidates - redirect to candidate dashboard
+    return NextResponse.redirect(new URL('/candidate', request.url));
   }
 
   // If user is not logged in and trying to access a protected route, redirect to login
@@ -73,9 +73,17 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  // If user is logged in and trying to access an auth route, redirect them away
+  // If user is logged in and trying to access an auth route, redirect them to their dashboard
   if (user && authRoutes.some(route => pathname.startsWith(route))) {
-    return NextResponse.redirect(new URL('/', request.url));
+    const userRole = user.user_metadata?.role;
+    if (userRole === UserRole.ADMIN) {
+      return NextResponse.redirect(new URL('/admin', request.url));
+    }
+    if (userRole === UserRole.RECRUITER) {
+      return NextResponse.redirect(new URL('/recruiter', request.url));
+    }
+    // Default for candidates
+    return NextResponse.redirect(new URL('/candidate', request.url));
   }
   
   // Role-based route protection

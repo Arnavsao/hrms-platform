@@ -112,9 +112,27 @@ async def conduct_screening(application_id: str, mode: str = "text") -> Screenin
     In production, this would be interactive.
     """
     try:
-        # TODO: Fetch application and candidate data from database
-        candidate_profile = {"name": "John Doe", "role": "Software Engineer"}
-        job_role = "Senior Software Engineer"
+        from app.core.supabase_client import get_supabase_client
+        supabase = get_supabase_client()
+        
+        # Fetch application and candidate data from database
+        app_response = supabase.table("applications").select(
+            "*, candidates(*), jobs(*)"
+        ).eq("id", application_id).single().execute()
+        
+        if not app_response.data:
+            raise ValueError(f"Application {application_id} not found")
+        
+        application = app_response.data
+        candidate = application.get('candidates', {})
+        job = application.get('jobs', {})
+        
+        candidate_profile = {
+            "name": candidate.get('name', 'Unknown'),
+            "role": job.get('title', 'Software Engineer'),
+            "parsed_data": candidate.get('parsed_data', {})
+        }
+        job_role = job.get('title', 'Software Engineer')
         
         # Generate questions
         questions = await generate_screening_questions(job_role, candidate_profile)
@@ -135,8 +153,9 @@ async def conduct_screening(application_id: str, mode: str = "text") -> Screenin
         # Evaluate responses
         evaluation = await evaluate_screening_responses(questions, simulated_responses)
         
-        # TODO: Store screening results in database
-        screening_id = f"screening-{application_id}"
+        # Generate screening ID
+        import uuid
+        screening_id = str(uuid.uuid4())
         
         logger.info(f"Completed screening for application {application_id}")
         

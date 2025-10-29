@@ -65,8 +65,10 @@ export interface ParseResumeResponse {
 }
 
 export interface MatchCandidateRequest {
-  candidate_id: string;
   job_id: string;
+  candidate_id?: string;
+  candidate_email?: string;
+  cover_letter?: string;
 }
 
 export interface MatchCandidateResponse {
@@ -76,6 +78,21 @@ export interface MatchCandidateResponse {
     weaknesses: string[];
     recommendations: string[];
   };
+}
+
+export interface ApplicationStatusUpdateRequest {
+  status: string;
+}
+
+export interface Application {
+  id: string;
+  candidate_id: string;
+  job_id: string;
+  fit_score?: number;
+  highlights?: any;
+  status: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface ScreeningRequest {
@@ -113,6 +130,24 @@ export const api = {
   // Match candidate against job description
   matchCandidate: async (data: MatchCandidateRequest): Promise<MatchCandidateResponse> => {
     const response = await apiClient.post('/api/applications/match', data);
+    return response.data;
+  },
+
+  // Create application without AI matching
+  createApplication: async (payload: {
+    candidate_id: string;
+    job_id: string;
+    fit_score?: number;
+    highlights?: any;
+    status?: string;
+  }): Promise<Application> => {
+    const response = await apiClient.post('/api/applications/', payload);
+    return response.data;
+  },
+
+  // Update application status
+  updateApplicationStatus: async (applicationId: string, payload: ApplicationStatusUpdateRequest) => {
+    const response = await apiClient.put(`/api/applications/${applicationId}/status`, payload);
     return response.data;
   },
 
@@ -159,8 +194,10 @@ export const api = {
   },
 
   // List all applications
-  listApplications: async (jobId?: string | null) => {
-    const params = jobId ? { job_id: jobId } : {};
+  listApplications: async (jobId?: string | null, candidateId?: string | null) => {
+    const params: any = {};
+    if (jobId) params.job_id = jobId;
+    if (candidateId) params.candidate_id = candidateId;
     const response = await apiClient.get('/api/applications/', { params });
     return response.data;
   },
@@ -174,6 +211,24 @@ export const api = {
   // Get screening details
   getScreening: async (screeningId: string) => {
     const response = await apiClient.get(`/api/screenings/${screeningId}`);
+    return response.data;
+  },
+
+  // Get digital footprint for a candidate
+  getDigitalFootprint: async (candidateId: string) => {
+    const response = await apiClient.get(`/api/footprints/${candidateId}`);
+    return response.data;
+  },
+
+  // Get candidate by email
+  getCandidateByEmail: async (email: string) => {
+    const response = await apiClient.get(`/api/candidates/me`, { params: { email } });
+    return response.data;
+  },
+
+  // List all candidates
+  listCandidates: async () => {
+    const response = await apiClient.get('/api/candidates/');
     return response.data;
   },
 };

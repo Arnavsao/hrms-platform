@@ -100,7 +100,7 @@ export default function RecruiterDashboard() {
       title: 'View Candidates',
       description: 'Browse all candidates',
       icon: <FileText className="h-6 w-6" />,
-      onClick: () => router.push('/candidates'),
+      onClick: () => router.push('/candidate'),
       color: 'bg-orange-500 hover:bg-orange-600',
     },
   ];
