@@ -7,10 +7,6 @@ class CandidateBase(BaseModel):
     name: str
     email: EmailStr
 
-class CandidateCreate(CandidateBase):
-    """Model for creating a new candidate"""
-    pass
-
 class ParsedData(BaseModel):
     """Structured data extracted from resume"""
     name: str
@@ -19,7 +15,11 @@ class ParsedData(BaseModel):
     skills: List[str] = []
     education: List[Dict[str, Any]] = []
     experience: List[Dict[str, Any]] = []
-    links: Dict[str, str] = {}
+    links: Dict[str, Optional[str]] = {}
+
+class CandidateCreate(CandidateBase):
+    """Model for creating a new candidate"""
+    parsed_data: Optional[ParsedData] = None
 
 class Candidate(CandidateBase):
     """Complete candidate model"""
@@ -28,7 +28,7 @@ class Candidate(CandidateBase):
     parsed_data: Optional[ParsedData] = None
     created_at: datetime
     updated_at: datetime
-    
+
     class Config:
         from_attributes = True
 

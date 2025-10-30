@@ -19,7 +19,9 @@ import {
   Calendar,
   GraduationCap,
   Briefcase,
-  User
+  User,
+  Upload,
+  FileText
 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 
@@ -49,20 +51,31 @@ export default function CandidatesPage() {
   useEffect(() => {
     async function fetchApplications() {
       try {
-        const data = await api.listApplications(null);
-        setApplications(data);
-        setFilteredApplications(data);
+        if (isRecruiter) {
+          const data = await api.listApplications(null);
+          setApplications(data);
+          setFilteredApplications(data);
+        } else if (session?.user?.email) {
+          // Candidate view: fetch own applications by resolving candidate id
+          try {
+            const candidate = await api.getCandidateByEmail(session.user.email);
+            const data = await api.listApplications(null, candidate?.id);
+            setApplications(data);
+            setFilteredApplications(data);
+          } catch (e) {
+            // No candidate profile yet
+            setApplications([]);
+            setFilteredApplications([]);
+          }
+        }
       } catch (error) {
         console.error("Failed to fetch applications", error);
       } finally {
         setIsLoading(false);
       }
     }
-    
-    if (isRecruiter) {
-      fetchApplications();
-    }
-  }, [isRecruiter]);
+    fetchApplications();
+  }, [isRecruiter, session?.user?.email]);
 
   useEffect(() => {
     let filtered = applications;
@@ -180,23 +193,55 @@ export default function CandidatesPage() {
   ];
 
   if (!isRecruiter) {
+    // Candidate dashboard view
     return (
-      <div className="container mx-auto px-4 py-8">
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <div className="text-center">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                Access Denied
-              </h3>
-              <p className="text-gray-500 mb-4">
-                You don&apos;t have permission to view candidates.
-              </p>
-              <Button onClick={() => router.push('/')}>
-                Go to Dashboard
-              </Button>
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="space-y-8">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">Your Candidate Dashboard</h1>
+              <p className="text-gray-600">Upload your resume, browse jobs, and track your applications.</p>
             </div>
-          </CardContent>
-        </Card>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => router.push('/candidates/upload')}>
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-3">
+                    <Upload className="h-5 w-5 text-blue-600" />
+                    <div>
+                      <p className="font-medium text-gray-900">Upload Resume</p>
+                      <p className="text-sm text-gray-500">Parse resume and build your profile</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => router.push('/jobs')}>
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-3">
+                    <Search className="h-5 w-5 text-green-600" />
+                    <div>
+                      <p className="font-medium text-gray-900">Browse Jobs</p>
+                      <p className="text-sm text-gray-500">Find roles that fit your skills</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-md transition-shadow">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-3">
+                    <FileText className="h-5 w-5 text-purple-600" />
+                    <div>
+                      <p className="font-medium text-gray-900">Applications</p>
+                      <p className="text-sm text-gray-500">Your applications will appear here</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }

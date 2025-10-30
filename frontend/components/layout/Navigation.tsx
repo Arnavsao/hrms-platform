@@ -58,10 +58,10 @@ export function Navigation({ className }: NavigationProps) {
         current: pathname.startsWith('/jobs'),
       },
       {
-        name: 'Candidates',
-        href: '/candidates',
+        name: 'View Candidates',
+        href: '/recruiter/candidates',
         icon: Users,
-        current: pathname.startsWith('/candidates'),
+        current: pathname.startsWith('/recruiter/candidates'),
       },
       {
         name: 'Applications',
@@ -79,6 +79,12 @@ export function Navigation({ className }: NavigationProps) {
       },
     ] : []),
     ...(userRole === 'candidate' ? [
+      {
+        name: 'My Profile',
+        href: '/candidate/profile',
+        icon: User,
+        current: pathname.startsWith('/candidate/profile'),
+      },
       {
         name: 'Upload Resume',
         href: '/candidates/upload',

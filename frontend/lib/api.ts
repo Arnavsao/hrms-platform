@@ -53,6 +53,7 @@ export interface ParseResumeResponse {
   parsed_data: {
     name: string;
     email: string;
+    phone?: string;
     skills: string[];
     education: any[];
     experience: any[];
@@ -65,8 +66,10 @@ export interface ParseResumeResponse {
 }
 
 export interface MatchCandidateRequest {
-  candidate_id: string;
   job_id: string;
+  candidate_id?: string;
+  candidate_email?: string;
+  cover_letter?: string;
 }
 
 export interface MatchCandidateResponse {
@@ -76,6 +79,21 @@ export interface MatchCandidateResponse {
     weaknesses: string[];
     recommendations: string[];
   };
+}
+
+export interface ApplicationStatusUpdateRequest {
+  status: string;
+}
+
+export interface Application {
+  id: string;
+  candidate_id: string;
+  job_id: string;
+  fit_score?: number;
+  highlights?: any;
+  status: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface ScreeningRequest {
@@ -113,6 +131,24 @@ export const api = {
   // Match candidate against job description
   matchCandidate: async (data: MatchCandidateRequest): Promise<MatchCandidateResponse> => {
     const response = await apiClient.post('/api/applications/match', data);
+    return response.data;
+  },
+
+  // Create application without AI matching
+  createApplication: async (payload: {
+    candidate_id: string;
+    job_id: string;
+    fit_score?: number;
+    highlights?: any;
+    status?: string;
+  }): Promise<Application> => {
+    const response = await apiClient.post('/api/applications/', payload);
+    return response.data;
+  },
+
+  // Update application status
+  updateApplicationStatus: async (applicationId: string, payload: ApplicationStatusUpdateRequest) => {
+    const response = await apiClient.put(`/api/applications/${applicationId}/status`, payload);
     return response.data;
   },
 
@@ -159,8 +195,10 @@ export const api = {
   },
 
   // List all applications
-  listApplications: async (jobId?: string | null) => {
-    const params = jobId ? { job_id: jobId } : {};
+  listApplications: async (jobId?: string | null, candidateId?: string | null) => {
+    const params: any = {};
+    if (jobId) params.job_id = jobId;
+    if (candidateId) params.candidate_id = candidateId;
     const response = await apiClient.get('/api/applications/', { params });
     return response.data;
   },
@@ -174,6 +212,99 @@ export const api = {
   // Get screening details
   getScreening: async (screeningId: string) => {
     const response = await apiClient.get(`/api/screenings/${screeningId}`);
+    return response.data;
+  },
+
+  // Get digital footprint for a candidate
+  getDigitalFootprint: async (candidateId: string) => {
+    const response = await apiClient.get(`/api/footprints/${candidateId}`);
+    return response.data;
+  },
+
+  // Get candidate by email
+  getCandidateByEmail: async (email: string) => {
+    const response = await apiClient.get(`/api/candidates/me`, { params: { email } });
+    return response.data;
+  },
+
+  // List all candidates
+  listCandidates: async () => {
+    const response = await apiClient.get('/api/candidates/');
+    return response.data;
+  },
+
+  // Create a new candidate
+  createCandidate: async (candidateData: any) => {
+    const response = await apiClient.post('/api/candidates/', candidateData);
+    return response.data;
+  },
+
+  // Update candidate profile
+  updateCandidate: async (candidateId: string, candidateData: any) => {
+    const response = await apiClient.put(`/api/candidates/${candidateId}`, candidateData);
+    return response.data;
+  },
+
+  // ==================== ADMIN APIs ====================
+
+  // Analytics
+  getAnalyticsOverview: async () => {
+    const response = await apiClient.get('/api/admin/analytics/overview');
+    return response.data;
+  },
+
+  getAnalyticsTrends: async (days: number = 30) => {
+    const response = await apiClient.get('/api/admin/analytics/trends', { params: { days } });
+    return response.data;
+  },
+
+  // User Management
+  listAllUsers: async (filters?: { role?: string; status?: string; search?: string }) => {
+    const response = await apiClient.get('/api/admin/users', { params: filters });
+    return response.data;
+  },
+
+  deleteUser: async (userId: string, userType: 'candidate' | 'recruiter') => {
+    const response = await apiClient.delete(`/api/admin/users/${userId}`, { params: { user_type: userType } });
+    return response.data;
+  },
+
+  updateUserStatus: async (userId: string, status: string, userType: 'candidate' | 'recruiter') => {
+    const response = await apiClient.put(`/api/admin/users/${userId}/status`, null, {
+      params: { status, user_type: userType }
+    });
+    return response.data;
+  },
+
+  // System Settings
+  getSystemSettings: async () => {
+    const response = await apiClient.get('/api/admin/settings');
+    return response.data;
+  },
+
+  updateSystemSettings: async (settings: any) => {
+    const response = await apiClient.put('/api/admin/settings', settings);
+    return response.data;
+  },
+
+  // Security
+  getAuditLog: async (limit: number = 50, offset: number = 0) => {
+    const response = await apiClient.get('/api/admin/security/audit-log', { params: { limit, offset } });
+    return response.data;
+  },
+
+  getActiveSessions: async () => {
+    const response = await apiClient.get('/api/admin/security/active-sessions');
+    return response.data;
+  },
+
+  terminateSession: async (sessionId: string) => {
+    const response = await apiClient.post(`/api/admin/security/sessions/${sessionId}/terminate`);
+    return response.data;
+  },
+
+  getSecurityThreats: async () => {
+    const response = await apiClient.get('/api/admin/security/threats');
     return response.data;
   },
 };
