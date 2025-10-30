@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 import re
 from typing import Dict, Optional
 from app.core.logging import get_logger
+from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -55,14 +56,20 @@ async def scrape_github(github_url: str) -> Optional[Dict]:
             repo_count = 0
             if repos_elem:
                 repo_text = repos_elem.get_text(strip=True)
-                repo_count = int(repo_text.replace(',', '')) if repo_text.isdigit() else 0
+                # Extract the first number (handles strings like "123" or "1,234 repos")
+                match = re.search(r"[\d,]+", repo_text)
+                if match:
+                    repo_count = int(match.group(0).replace(',', ''))
             
             # Get followers count
             followers_elem = soup.find('a', href=re.compile(f'/{username}\\?tab=followers'))
             followers = 0
             if followers_elem:
-                followers_text = followers_elem.get_text(strip=True).split()[0]
-                followers = int(followers_text.replace(',', '')) if re.match(r'^\d+', followers_text) else 0
+                followers_text = followers_elem.get_text(strip=True)
+                # Extract the first number even if concatenated like "2followers"
+                match = re.search(r"[\d,]+", followers_text)
+                if match:
+                    followers = int(match.group(0).replace(',', ''))
             
             # Try to get contributions from contribution graph
             contributions_elem = soup.find('h2', string=re.compile('contributions'))

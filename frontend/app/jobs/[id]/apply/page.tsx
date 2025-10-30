@@ -20,6 +20,7 @@ export default function JobApplicationPage({
   const [error, setError] = useState<string | null>(null);
   const [resume, setResume] = useState<File | null>(null);
   const [coverLetter, setCoverLetter] = useState<string>("");
+  const [alreadyApplied, setAlreadyApplied] = useState<boolean>(false);
 
   useEffect(() => {
     async function loadJob() {
@@ -33,6 +34,23 @@ export default function JobApplicationPage({
     }
     loadJob();
   }, [params.id]);
+
+  // Check if the user has already applied (by email → candidate → applications)
+  useEffect(() => {
+    async function checkAlreadyApplied() {
+      if (!email || !params.id) return;
+      try {
+        const candidate = await api.getCandidateByEmail(email);
+        if (candidate?.id) {
+          const apps = await api.listApplications(params.id, candidate.id);
+          setAlreadyApplied(Array.isArray(apps) && apps.length > 0);
+        }
+      } catch (_) {
+        // ignore: candidate may not exist yet
+      }
+    }
+    checkAlreadyApplied();
+  }, [email, params.id]);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,6 +97,7 @@ export default function JobApplicationPage({
         cover_letter: coverLetter || undefined,
       });
       setResult(match);
+      setAlreadyApplied(true);
     } catch (err: any) {
       console.error('Apply error', err);
       setError(err?.response?.data?.detail || 'Failed to submit application');
@@ -135,9 +154,15 @@ export default function JobApplicationPage({
                   />
                 </div>
 
-                <Button type="submit" disabled={submitting}>
-                  {submitting ? 'Submitting...' : 'Submit application'}
-                </Button>
+                {!alreadyApplied ? (
+                  <Button type="submit" disabled={submitting}>
+                    {submitting ? 'Submitting...' : 'Submit application'}
+                  </Button>
+                ) : (
+                  <Button type="button" disabled className="opacity-60 cursor-not-allowed">
+                    Already applied
+                  </Button>
+                )}
               </form>
 
               {error && (

@@ -17,6 +17,25 @@ logger = get_logger(__name__)
 # Configure Gemini AI
 genai.configure(api_key=settings.GEMINI_API_KEY)
 
+def _sanitize_url(url: str) -> str | None:
+    """Best-effort URL sanitizer: strip odd unicode, ensure scheme, and validate hostname.
+    Returns a cleaned URL or None if invalid.
+    """
+    try:
+        # Remove control/non-printable and unusual unicode characters
+        cleaned = ''.join(ch for ch in url if 31 < ord(ch) < 127)
+        # Ensure scheme
+        if not cleaned.startswith('http'):
+            cleaned = f"https://{cleaned}"
+        # Basic hostname validation
+        from urllib.parse import urlparse
+        parsed = urlparse(cleaned)
+        if not parsed.netloc or any(c in parsed.netloc for c in [' ', '\\']):
+            return None
+        return cleaned.rstrip('/')
+    except Exception:
+        return None
+
 async def extract_text_from_pdf(content: bytes) -> str:
     """Extract text from PDF file"""
     try:
@@ -260,7 +279,13 @@ async def parse_resume_with_ai(text: str, pdf_links: Dict[str, str] = None) -> P
                 ai_links[key] = pdf_links[key]
                 logger.info(f"Using PDF annotation {key} URL: {pdf_links[key]}")
 
-        parsed_json["links"] = ai_links
+        # Sanitize merged links and drop invalid ones
+        sanitized: Dict[str, str] = {}
+        for k, v in ai_links.items():
+            cleaned = _sanitize_url(v)
+            if cleaned:
+                sanitized[k] = cleaned
+        parsed_json["links"] = sanitized
         logger.info(f"Final merged links: {parsed_json.get('links', {})}")
 
         # Ensure required fields have defaults

@@ -87,6 +87,15 @@ async def get_candidate(
 ):
     """Get candidate details by ID including digital footprint"""
     try:
+        # Validate UUID format early to avoid 500 from Supabase for invalid IDs like "me"
+        try:
+            uuid.UUID(candidate_id)
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid candidate_id. Provide a UUID or use /api/candidates/me?email=...",
+            )
+
         # Fetch candidate with digital footprint
         response = supabase.table("candidates").select(
             "*, digital_footprints(github_data, linkedin_data, portfolio_data)"

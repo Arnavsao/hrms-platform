@@ -67,7 +67,10 @@ async def match_candidate(
             highlights=merged_highlights
         )
         # Upsert to avoid duplicate applications for same candidate+job
-        supabase.table("applications").upsert(application_data.dict(), on_conflict="candidate_id,job_id").execute()
+        supabase.table("applications").upsert(
+            application_data.model_dump(mode="json"),
+            on_conflict="candidate_id,job_id",
+        ).execute()
 
         return result
     
@@ -133,7 +136,10 @@ async def create_application(
     """Create an application without AI matching (manual apply)."""
     try:
         logger.info(f"Creating application for candidate {payload.candidate_id} and job {payload.job_id}")
-        response = supabase.table("applications").upsert(payload.dict(), on_conflict="candidate_id,job_id").execute()
+        response = supabase.table("applications").upsert(
+            payload.model_dump(mode="json"),
+            on_conflict="candidate_id,job_id",
+        ).execute()
         return response.data[0]
     except Exception as e:
         logger.error(f"Error creating application: {str(e)}")
