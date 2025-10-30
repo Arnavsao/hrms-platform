@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { UserRole } from './lib/auth';
 
-const protectedRoutes = ['/recruiter', '/admin', '/candidate', '/jobs'];
+const protectedRoutes = ['/recruiter', '/admin', '/candidates', '/candidate', '/jobs'];
 const authRoutes = ['/login', '/signup'];
 
 export async function middleware(request: NextRequest) {

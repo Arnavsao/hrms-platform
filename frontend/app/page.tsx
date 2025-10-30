@@ -29,7 +29,7 @@ export default function Home() {
       } else if (userRole === 'recruiter') {
         router.push('/recruiter');
       } else {
-        router.push('/candidate');
+        router.push('/candidates');
       }
     }
   }, [session, isLoading, router]);

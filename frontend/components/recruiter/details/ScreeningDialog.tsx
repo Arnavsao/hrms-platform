@@ -13,7 +13,8 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { ThumbsUp, ThumbsDown, BrainCircuit } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ThumbsUp, ThumbsDown, BrainCircuit, Loader2, AlertCircle } from 'lucide-react';
 
 interface ScreeningDialogProps {
   applicationId: string;
@@ -26,17 +27,40 @@ export function ScreeningDialog({ applicationId }: ScreeningDialogProps) {
   const [result, setResult] = useState<ScreeningResponse | null>(null);
 
   const handleStartScreening = async () => {
+    if (!applicationId) {
+      setError('Invalid application ID');
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
     setResult(null);
+
     try {
-      const response = await api.startScreening({ application_id: applicationId, mode: 'text' });
+      console.log('Starting screening for application:', applicationId);
+      const response = await api.startScreening({
+        application_id: applicationId,
+        mode: 'text'
+      });
+      console.log('Screening response:', response);
       setResult(response);
     } catch (err: any) {
-      setError(err.message || 'Failed to start screening.');
+      console.error('Screening error:', err);
+      const errorMessage = err.response?.data?.detail || err.message || 'Failed to start screening. Please try again.';
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleClose = () => {
+    setIsOpen(false);
+    // Reset state when closing
+    setTimeout(() => {
+      setResult(null);
+      setError(null);
+      setIsLoading(false);
+    }, 300);
   };
 
   const renderResult = () => {
@@ -81,38 +105,71 @@ export function ScreeningDialog({ applicationId }: ScreeningDialogProps) {
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogTrigger asChild>
         <Button>
-            <BrainCircuit className="mr-2 h-4 w-4" /> Start AI Screening
+          <BrainCircuit className="mr-2 h-4 w-4" /> Start AI Screening
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[625px]">
+      <DialogContent className="sm:max-w-[625px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Conversational AI Screening</DialogTitle>
           <DialogDescription>
-            The AI will ask the candidate 3 adaptive questions and generate an evaluation.
+            The AI will conduct a simulated screening interview and generate an evaluation.
           </DialogDescription>
         </DialogHeader>
-        
+
         <div className="py-4">
-            {!result && !isLoading && (
-                 <div className="text-center">
-                    <p>Ready to start the simulated screening?</p>
-                 </div>
-            )}
-            {isLoading && <div className="text-center">Screening in progress...</div>}
-            {error && <div className="text-center text-red-500">{error}</div>}
-            {result && renderResult()}
+          {!result && !isLoading && !error && (
+            <div className="text-center py-6">
+              <BrainCircuit className="h-12 w-12 text-primary mx-auto mb-4" />
+              <p className="text-muted-foreground">
+                Ready to start the simulated screening interview?
+              </p>
+              <p className="text-sm text-muted-foreground mt-2">
+                This will generate AI-based questions and simulate candidate responses.
+              </p>
+            </div>
+          )}
+
+          {isLoading && (
+            <div className="flex flex-col items-center justify-center py-8">
+              <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+              <p className="text-lg font-medium">Conducting AI screening...</p>
+              <p className="text-sm text-muted-foreground mt-2">
+                This may take a few moments
+              </p>
+            </div>
+          )}
+
+          {error && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                {error}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {result && renderResult()}
         </div>
 
-        <DialogFooter>
-          {!result && (
+        <DialogFooter className="flex gap-2">
+          {!result && !isLoading && (
             <Button onClick={handleStartScreening} disabled={isLoading}>
-              {isLoading ? 'Running...' : 'Begin Simulation'}
+              <BrainCircuit className="mr-2 h-4 w-4" />
+              Begin Screening
             </Button>
           )}
-          <Button variant="secondary" onClick={() => setIsOpen(false)}>Close</Button>
+          {error && (
+            <Button onClick={handleStartScreening} disabled={isLoading} variant="outline">
+              <BrainCircuit className="mr-2 h-4 w-4" />
+              Try Again
+            </Button>
+          )}
+          <Button variant="secondary" onClick={handleClose}>
+            Close
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

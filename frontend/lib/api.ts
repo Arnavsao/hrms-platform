@@ -53,6 +53,7 @@ export interface ParseResumeResponse {
   parsed_data: {
     name: string;
     email: string;
+    phone?: string;
     skills: string[];
     education: any[];
     experience: any[];
@@ -229,6 +230,18 @@ export const api = {
   // List all candidates
   listCandidates: async () => {
     const response = await apiClient.get('/api/candidates/');
+    return response.data;
+  },
+
+  // Create a new candidate
+  createCandidate: async (candidateData: any) => {
+    const response = await apiClient.post('/api/candidates/', candidateData);
+    return response.data;
+  },
+
+  // Update candidate profile
+  updateCandidate: async (candidateId: string, candidateData: any) => {
+    const response = await apiClient.put(`/api/candidates/${candidateId}`, candidateData);
     return response.data;
   },
 };

@@ -128,10 +128,17 @@ export default function CandidateDashboard() {
 
   const quickActions = [
     {
+      title: 'My Profile',
+      description: 'View and edit your profile information',
+      icon: <FileText className="h-6 w-6" />,
+      onClick: () => router.push('/candidate/profile'),
+      color: 'bg-indigo-500 hover:bg-indigo-600',
+    },
+    {
       title: 'Upload Resume',
       description: 'Update your profile with latest resume',
       icon: <Upload className="h-6 w-6" />,
-      onClick: () => router.push('/candidate'),
+      onClick: () => router.push('/candidates/upload'),
       color: 'bg-blue-500 hover:bg-blue-600',
     },
     {
@@ -140,16 +147,6 @@ export default function CandidateDashboard() {
       icon: <Briefcase className="h-6 w-6" />,
       onClick: () => router.push('/jobs'),
       color: 'bg-green-500 hover:bg-green-600',
-    },
-    {
-      title: 'My Applications',
-      description: 'Track your application status',
-      icon: <FileText className="h-6 w-6" />,
-      onClick: () => {
-        // Scroll to applications section
-        document.getElementById('applications-section')?.scrollIntoView({ behavior: 'smooth' });
-      },
-      color: 'bg-purple-500 hover:bg-purple-600',
     },
   ];
 
@@ -429,7 +426,7 @@ export default function CandidateDashboard() {
                   </div>
                 </div>
 
-                <Button variant="outline" className="w-full mt-4" onClick={() => router.push('/candidate')}>
+                <Button variant="outline" className="w-full mt-4" onClick={() => router.push('/candidate/profile')}>
                   Complete Profile
                 </Button>
               </div>

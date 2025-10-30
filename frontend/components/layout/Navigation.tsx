@@ -58,10 +58,10 @@ export function Navigation({ className }: NavigationProps) {
         current: pathname.startsWith('/jobs'),
       },
       {
-        name: 'Candidates',
-        href: '/candidate',
+        name: 'View Candidates',
+        href: '/recruiter/candidates',
         icon: Users,
-        current: pathname.startsWith('/candidate'),
+        current: pathname.startsWith('/recruiter/candidates'),
       },
       {
         name: 'Applications',
@@ -80,10 +80,16 @@ export function Navigation({ className }: NavigationProps) {
     ] : []),
     ...(userRole === 'candidate' ? [
       {
+        name: 'My Profile',
+        href: '/candidate/profile',
+        icon: User,
+        current: pathname.startsWith('/candidate/profile'),
+      },
+      {
         name: 'Upload Resume',
-        href: '/candidate',
+        href: '/candidates/upload',
         icon: Upload,
-        current: pathname.startsWith('/candidate'),
+        current: pathname.startsWith('/candidates/upload'),
       },
       {
         name: 'Browse Jobs',
@@ -143,9 +149,7 @@ export function Navigation({ className }: NavigationProps) {
                             variant={item.current ? 'secondary' : 'ghost'}
                             className={cn(
                               'w-full justify-start h-12 px-4',
-                              item.current
-                                ? 'bg-secondary text-secondary-foreground'
-                                : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
+                              item.current && 'bg-secondary'
                             )}
                             onClick={() => {
                               router.push(item.href);
@@ -204,9 +208,7 @@ export function Navigation({ className }: NavigationProps) {
                   variant={item.current ? 'secondary' : 'ghost'}
                   className={cn(
                     'inline-flex items-center px-4 py-2 text-sm font-medium rounded-md transition-colors',
-                    item.current
-                      ? 'bg-secondary text-secondary-foreground'
-                      : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
+                    item.current && 'bg-secondary text-secondary-foreground'
                   )}
                   onClick={() => router.push(item.href)}
                 >
