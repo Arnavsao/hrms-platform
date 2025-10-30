@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.logging import setup_logging
-from app.api import candidates, jobs, applications, screenings, digital_footprints
+from app.api import candidates, jobs, applications, screenings, digital_footprints, admin
 
 # Setup logging
 setup_logging()
@@ -31,6 +31,7 @@ app.include_router(jobs.router, prefix="/api/jobs", tags=["Jobs"])
 app.include_router(applications.router, prefix="/api/applications", tags=["Applications"])
 app.include_router(screenings.router, prefix="/api/screenings", tags=["Screenings"])
 app.include_router(digital_footprints.router, prefix="/api/footprints", tags=["Digital Footprints"])
+app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])
 
 @app.get("/")
 async def root():

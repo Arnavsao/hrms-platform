@@ -244,6 +244,69 @@ export const api = {
     const response = await apiClient.put(`/api/candidates/${candidateId}`, candidateData);
     return response.data;
   },
+
+  // ==================== ADMIN APIs ====================
+
+  // Analytics
+  getAnalyticsOverview: async () => {
+    const response = await apiClient.get('/api/admin/analytics/overview');
+    return response.data;
+  },
+
+  getAnalyticsTrends: async (days: number = 30) => {
+    const response = await apiClient.get('/api/admin/analytics/trends', { params: { days } });
+    return response.data;
+  },
+
+  // User Management
+  listAllUsers: async (filters?: { role?: string; status?: string; search?: string }) => {
+    const response = await apiClient.get('/api/admin/users', { params: filters });
+    return response.data;
+  },
+
+  deleteUser: async (userId: string, userType: 'candidate' | 'recruiter') => {
+    const response = await apiClient.delete(`/api/admin/users/${userId}`, { params: { user_type: userType } });
+    return response.data;
+  },
+
+  updateUserStatus: async (userId: string, status: string, userType: 'candidate' | 'recruiter') => {
+    const response = await apiClient.put(`/api/admin/users/${userId}/status`, null, {
+      params: { status, user_type: userType }
+    });
+    return response.data;
+  },
+
+  // System Settings
+  getSystemSettings: async () => {
+    const response = await apiClient.get('/api/admin/settings');
+    return response.data;
+  },
+
+  updateSystemSettings: async (settings: any) => {
+    const response = await apiClient.put('/api/admin/settings', settings);
+    return response.data;
+  },
+
+  // Security
+  getAuditLog: async (limit: number = 50, offset: number = 0) => {
+    const response = await apiClient.get('/api/admin/security/audit-log', { params: { limit, offset } });
+    return response.data;
+  },
+
+  getActiveSessions: async () => {
+    const response = await apiClient.get('/api/admin/security/active-sessions');
+    return response.data;
+  },
+
+  terminateSession: async (sessionId: string) => {
+    const response = await apiClient.post(`/api/admin/security/sessions/${sessionId}/terminate`);
+    return response.data;
+  },
+
+  getSecurityThreats: async () => {
+    const response = await apiClient.get('/api/admin/security/threats');
+    return response.data;
+  },
 };
 
 export default apiClient;
