@@ -97,7 +97,7 @@ export default function ViewCandidatesPage() {
   };
 
   const handleViewProfile = (candidateId: string) => {
-    router.push(`/recruiter/candidates/${candidateId}`);
+    router.push(`/candidates/${candidateId}`);
   };
 
   const getInitials = (name: string) => {

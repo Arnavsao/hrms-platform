@@ -1,6 +1,6 @@
-from pydantic import BaseModel
-from typing import Optional, List
-from datetime import date
+from pydantic import BaseModel, field_validator
+from typing import Optional, List, Union
+from datetime import date, datetime
 
 
 class LeaveRequestBase(BaseModel):
@@ -35,6 +35,19 @@ class LeaveRequest(LeaveRequestBase):
     approved_at: Optional[date] = None
     created_at: date
     updated_at: date
+    
+    @field_validator('submitted_at', 'created_at', 'updated_at', 'approved_at', mode='before')
+    @classmethod
+    def parse_date(cls, v):
+        """Convert datetime strings to date objects"""
+        if isinstance(v, str):
+            # Extract date part from ISO datetime string
+            if 'T' in v:
+                return v.split('T')[0]
+            return v
+        elif isinstance(v, datetime):
+            return v.date()
+        return v
     
     class Config:
         from_attributes = True
