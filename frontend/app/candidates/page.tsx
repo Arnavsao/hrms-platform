@@ -30,7 +30,11 @@ interface Application {
   job_id: string;
   fit_score: number;
   candidate_name?: string;
+  candidate_email?: string;
+  candidate_skills?: string[];
   job_title?: string;
+  company?: string;
+  location?: string;
   created_at: string;
   status?: string;
 }
@@ -123,11 +127,27 @@ export default function CandidatesPage() {
               <User className="h-4 w-4" />
             </AvatarFallback>
           </Avatar>
-          <div>
-            <p className="font-medium text-gray-900">
+          <div className="min-w-0">
+            <p className="font-medium text-gray-900 truncate">
               {value || `Candidate ${row.candidate_id.slice(0, 8)}`}
             </p>
-            <p className="text-sm text-gray-500">ID: {row.candidate_id.slice(0, 8)}...</p>
+            {row.candidate_email && (
+              <p className="text-sm text-gray-500 truncate">{row.candidate_email}</p>
+            )}
+            {row.candidate_skills && row.candidate_skills.length > 0 && (
+              <div className="flex gap-1 mt-1 flex-wrap">
+                {row.candidate_skills.slice(0, 2).map((skill, idx) => (
+                  <Badge key={idx} variant="outline" className="text-xs">
+                    {skill}
+                  </Badge>
+                ))}
+                {row.candidate_skills.length > 2 && (
+                  <Badge variant="outline" className="text-xs">
+                    +{row.candidate_skills.length - 2}
+                  </Badge>
+                )}
+              </div>
+            )}
           </div>
         </div>
       ),
@@ -137,10 +157,19 @@ export default function CandidatesPage() {
       label: 'Job Position',
       sortable: true,
       render: (value: string, row: Application) => (
-        <div>
-          <p className="font-medium text-gray-900">{value || `Job ${row.job_id.slice(0, 8)}`}</p>
-          <div className="flex items-center space-x-1 text-sm text-gray-500">
-            <Briefcase className="h-4 w-4" />
+        <div className="min-w-0">
+          <p className="font-medium text-gray-900 truncate">{value || `Job ${row.job_id.slice(0, 8)}`}</p>
+          {row.company && (
+            <p className="text-sm text-gray-500 truncate">{row.company}</p>
+          )}
+          {row.location && (
+            <div className="flex items-center space-x-1 text-sm text-gray-500 mt-1">
+              <MapPin className="h-3 w-3" />
+              <span className="truncate">{row.location}</span>
+            </div>
+          )}
+          <div className="flex items-center space-x-1 text-sm text-gray-500 mt-1">
+            <Calendar className="h-3 w-3" />
             <span>Applied {formatDate(row.created_at)}</span>
           </div>
         </div>

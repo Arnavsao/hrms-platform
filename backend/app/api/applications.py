@@ -115,31 +115,81 @@ async def list_applications(
 ):
     """List all applications, optionally filtered by job_id or candidate_id"""
     try:
-        query = supabase.table("applications").select("*").order("created_at", desc=True)
-        if job_id:
-            query = query.eq("job_id", job_id)
-        if candidate_id:
-            query = query.eq("candidate_id", candidate_id)
+        # Try to use the candidate_applications_view if it exists, otherwise fall back to applications table
+        try:
+            query = supabase.table("candidate_applications_view").select("*").order("applied_at", desc=True)
+            if job_id:
+                query = query.eq("job_id", job_id)
+            if candidate_id:
+                query = query.eq("candidate_id", candidate_id)
+            
+            response = query.execute()
+            applications = response.data or []
+            
+            # View already has joined data with proper field names
+            # The view returns: candidate_id, name, email, job_id, job_title, application_id, 
+            #                   fit_score, application_status, applied_at
+            for app in applications:
+                # Normalize field names for consistency with frontend expectations
+                app["candidate_name"] = app.get("name", f"Candidate {app['candidate_id'][:8]}")
+                app["status"] = app.get("application_status", "pending")
+                app["id"] = app.get("application_id")
+                app["created_at"] = app.get("applied_at")
+                    
+            logger.info(f"Successfully fetched {len(applications)} applications from view")
+            return applications
+            
+        except Exception as view_err:
+            logger.warning(f"Could not fetch from candidate_applications_view, falling back to applications table: {view_err}")
 
-        response = query.execute()
-        applications = response.data or []
+            
+            # Fallback to applications table with manual joins
+            query = supabase.table("applications").select("*").order("created_at", desc=True)
+            if job_id:
+                query = query.eq("job_id", job_id)
+            if candidate_id:
+                query = query.eq("candidate_id", candidate_id)
 
-        # Enrich with job information
-        for app in applications:
-            try:
-                job_response = supabase.table("jobs").select("id, title, company, location, status").eq("id", app["job_id"]).single().execute()
-                if job_response.data:
-                    app["job_title"] = job_response.data.get("title", "Job Position")
-                    app["company"] = job_response.data.get("company")
-                    app["location"] = job_response.data.get("location")
-                    app["job_status"] = job_response.data.get("status")
-                else:
+            response = query.execute()
+            applications = response.data or []
+
+            # Enrich with job and candidate information
+            for app in applications:
+                # Fetch job details (only select columns that exist)
+                try:
+                    job_response = supabase.table("jobs").select("id, title, description, requirements, status").eq("id", app["job_id"]).single().execute()
+                    if job_response.data:
+                        app["job_title"] = job_response.data.get("title", "Job Position")
+                        app["job_status"] = job_response.data.get("status")
+                        # Note: company and location columns don't exist in base schema
+                    else:
+                        app["job_title"] = "Job Position"
+                except Exception as job_err:
+                    logger.warning(f"Could not fetch job details for {app['job_id']}: {job_err}")
                     app["job_title"] = "Job Position"
-            except Exception as job_err:
-                logger.warning(f"Could not fetch job details for {app['job_id']}: {str(job_err)}")
-                app["job_title"] = "Job Position"
 
-        return applications
+                # Fetch candidate details (only select columns that exist)
+                try:
+                    candidate_response = supabase.table("candidates").select("id, name, email, parsed_data").eq("id", app["candidate_id"]).single().execute()
+                    if candidate_response.data:
+                        candidate_data = candidate_response.data
+                        app["candidate_name"] = candidate_data.get("name") or f"Candidate {app['candidate_id'][:8]}"
+                        app["candidate_email"] = candidate_data.get("email")
+                        # Extract skills from parsed_data if available
+                        parsed_data = candidate_data.get("parsed_data", {})
+                        if isinstance(parsed_data, dict):
+                            app["candidate_skills"] = parsed_data.get("skills", [])
+                        else:
+                            app["candidate_skills"] = []
+                        logger.debug(f"Fetched candidate {app['candidate_id'][:8]}: name={app['candidate_name']}, email={app['candidate_email']}")
+                    else:
+                        app["candidate_name"] = f"Candidate {app['candidate_id'][:8]}"
+                        logger.warning(f"No candidate data found for {app['candidate_id']}")
+                except Exception as candidate_err:
+                    logger.error(f"Error fetching candidate details for {app['candidate_id']}: {candidate_err}")
+                    app["candidate_name"] = f"Candidate {app['candidate_id'][:8]}"
+
+            return applications
     except Exception as e:
         logger.error(f"Error listing applications: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to retrieve applications.")
