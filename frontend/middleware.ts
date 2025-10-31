@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { UserRole } from './lib/auth';
 
-const protectedRoutes = ['/recruiter', '/admin', '/candidates', '/candidate', '/jobs'];
+const protectedRoutes = ['/recruiter', '/admin', '/candidates', '/candidate', '/employee', '/hr', '/jobs'];
 const authRoutes = ['/login', '/signup'];
 
 export async function middleware(request: NextRequest) {
@@ -64,6 +64,9 @@ export async function middleware(request: NextRequest) {
     if (userRole === UserRole.RECRUITER) {
         return NextResponse.redirect(new URL('/recruiter', request.url));
     }
+    if (userRole === UserRole.EMPLOYEE) {
+        return NextResponse.redirect(new URL('/employee', request.url));
+    }
     // Default for candidates - redirect to candidate dashboard
     return NextResponse.redirect(new URL('/candidate', request.url));
   }
@@ -82,6 +85,9 @@ export async function middleware(request: NextRequest) {
     if (userRole === UserRole.RECRUITER) {
       return NextResponse.redirect(new URL('/recruiter', request.url));
     }
+    if (userRole === UserRole.EMPLOYEE) {
+      return NextResponse.redirect(new URL('/employee', request.url));
+    }
     // Default for candidates
     return NextResponse.redirect(new URL('/candidate', request.url));
   }
@@ -93,6 +99,12 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL('/', request.url)); // Not authorized
     }
     if (pathname.startsWith('/recruiter') && userRole !== UserRole.RECRUITER && userRole !== UserRole.ADMIN) {
+      return NextResponse.redirect(new URL('/', request.url)); // Not authorized
+    }
+    if (pathname.startsWith('/employee') && userRole !== UserRole.EMPLOYEE && userRole !== UserRole.ADMIN) {
+      return NextResponse.redirect(new URL('/', request.url)); // Not authorized
+    }
+    if (pathname.startsWith('/hr') && userRole !== UserRole.RECRUITER && userRole !== UserRole.ADMIN) {
       return NextResponse.redirect(new URL('/', request.url)); // Not authorized
     }
   }

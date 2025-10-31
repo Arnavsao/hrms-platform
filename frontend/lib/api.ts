@@ -35,9 +35,22 @@ apiClient.interceptors.response.use(
     return response;
   },
   (error) => {
-    console.error('API response error:', error.response?.data || error.message);
-    if (error.code === 'ERR_NETWORK') {
-      console.error('Network error: Make sure your backend server is running on', API_BASE_URL);
+    // Enhanced error logging
+    if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
+      const errorMsg = `Cannot connect to backend server at ${API_BASE_URL}. Please ensure:
+1. Backend server is running (check: ${API_BASE_URL}/health)
+2. No firewall is blocking the connection
+3. CORS is properly configured`;
+      console.error('Network error:', errorMsg);
+      console.error('Request URL:', error.config?.url);
+      console.error('Base URL:', API_BASE_URL);
+      // Enhance error with helpful message
+      error.networkError = true;
+      error.userMessage = errorMsg;
+    } else {
+      console.error('API response error:', error.response?.data || error.message);
+      console.error('Status:', error.response?.status);
+      console.error('URL:', error.config?.url);
     }
     return Promise.reject(error);
   }
@@ -311,6 +324,219 @@ export const api = {
 
   getSecurityThreats: async () => {
     const response = await apiClient.get('/api/admin/security/threats');
+    return response.data;
+  },
+
+  // ==================== EMPLOYEE APIs ====================
+
+  // Employee Management
+  createEmployee: async (employeeData: any) => {
+    const response = await apiClient.post('/api/employees/', employeeData);
+    return response.data;
+  },
+
+  listEmployees: async (filters?: { department?: string; status?: string; search?: string }) => {
+    const response = await apiClient.get('/api/employees/', { params: filters });
+    return response.data;
+  },
+
+  getEmployee: async (employeeId: string) => {
+    const response = await apiClient.get(`/api/employees/${employeeId}`);
+    return response.data;
+  },
+
+  getCurrentEmployee: async (email: string) => {
+    const response = await apiClient.get('/api/employees/me', { params: { email } });
+    return response.data;
+  },
+
+  getEmployeeStats: async () => {
+    const response = await apiClient.get('/api/employees/stats');
+    return response.data;
+  },
+
+  updateEmployee: async (employeeId: string, employeeData: any) => {
+    const response = await apiClient.put(`/api/employees/${employeeId}`, employeeData);
+    return response.data;
+  },
+
+  deleteEmployee: async (employeeId: string) => {
+    const response = await apiClient.delete(`/api/employees/${employeeId}`);
+    return response.data;
+  },
+
+  // Attendance Management
+  createAttendance: async (attendanceData: any) => {
+    const response = await apiClient.post('/api/attendance/', attendanceData);
+    return response.data;
+  },
+
+  listAttendance: async (filters?: { employee_id?: string; start_date?: string; end_date?: string; status?: string }) => {
+    const response = await apiClient.get('/api/attendance/', { params: filters });
+    return response.data;
+  },
+
+  getAttendance: async (attendanceId: string) => {
+    const response = await apiClient.get(`/api/attendance/${attendanceId}`);
+    return response.data;
+  },
+
+  getAttendanceStats: async (employeeId: string, startDate?: string, endDate?: string) => {
+    const response = await apiClient.get(`/api/attendance/stats/${employeeId}`, {
+      params: { start_date: startDate, end_date: endDate }
+    });
+    return response.data;
+  },
+
+  updateAttendance: async (attendanceId: string, attendanceData: any) => {
+    const response = await apiClient.put(`/api/attendance/${attendanceId}`, attendanceData);
+    return response.data;
+  },
+
+  checkoutAttendance: async (employeeId: string) => {
+    const response = await apiClient.post(`/api/attendance/checkout/${employeeId}`);
+    return response.data;
+  },
+
+  deleteAttendance: async (attendanceId: string) => {
+    const response = await apiClient.delete(`/api/attendance/${attendanceId}`);
+    return response.data;
+  },
+
+  // Payroll Management
+  createPayroll: async (payrollData: any) => {
+    const response = await apiClient.post('/api/payroll/', payrollData);
+    return response.data;
+  },
+
+  listPayroll: async (filters?: { employee_id?: string; status?: string; month?: string }) => {
+    const response = await apiClient.get('/api/payroll/', { params: filters });
+    return response.data;
+  },
+
+  getPayroll: async (payrollId: string) => {
+    const response = await apiClient.get(`/api/payroll/${payrollId}`);
+    return response.data;
+  },
+
+  getPayrollHistory: async (employeeId: string, limit: number = 12) => {
+    const response = await apiClient.get(`/api/payroll/employee/${employeeId}/history`, { params: { limit } });
+    return response.data;
+  },
+
+  updatePayroll: async (payrollId: string, payrollData: any) => {
+    const response = await apiClient.put(`/api/payroll/${payrollId}`, payrollData);
+    return response.data;
+  },
+
+  processPayroll: async (payrollId: string, processedBy: string) => {
+    const response = await apiClient.post(`/api/payroll/${payrollId}/process`, null, { params: { processed_by: processedBy } });
+    return response.data;
+  },
+
+  markPayrollPaid: async (payrollId: string) => {
+    const response = await apiClient.post(`/api/payroll/${payrollId}/mark-paid`);
+    return response.data;
+  },
+
+  generateMonthlyPayroll: async (month: string) => {
+    const response = await apiClient.post('/api/payroll/generate-monthly', null, { params: { month } });
+    return response.data;
+  },
+
+  deletePayroll: async (payrollId: string) => {
+    const response = await apiClient.delete(`/api/payroll/${payrollId}`);
+    return response.data;
+  },
+
+  // Performance Management
+  createPerformanceReview: async (reviewData: any) => {
+    const response = await apiClient.post('/api/performance/', reviewData);
+    return response.data;
+  },
+
+  listPerformanceReviews: async (filters?: { employee_id?: string; reviewed_by?: string; status?: string }) => {
+    const response = await apiClient.get('/api/performance/', { params: filters });
+    return response.data;
+  },
+
+  getPerformanceReview: async (reviewId: string) => {
+    const response = await apiClient.get(`/api/performance/${reviewId}`);
+    return response.data;
+  },
+
+  getPerformanceStats: async (employeeId: string) => {
+    const response = await apiClient.get(`/api/performance/stats/${employeeId}`);
+    return response.data;
+  },
+
+  updatePerformanceReview: async (reviewId: string, reviewData: any) => {
+    const response = await apiClient.put(`/api/performance/${reviewId}`, reviewData);
+    return response.data;
+  },
+
+  submitSelfReview: async (reviewId: string, data: any) => {
+    const response = await apiClient.post(`/api/performance/${reviewId}/submit-self-review`, data);
+    return response.data;
+  },
+
+  completePerformanceReview: async (reviewId: string, data: any) => {
+    const response = await apiClient.post(`/api/performance/${reviewId}/complete`, data);
+    return response.data;
+  },
+
+  deletePerformanceReview: async (reviewId: string) => {
+    const response = await apiClient.delete(`/api/performance/${reviewId}`);
+    return response.data;
+  },
+
+  // Leave Management
+  createLeaveRequest: async (leaveData: any) => {
+    const response = await apiClient.post('/api/leave/requests', leaveData);
+    return response.data;
+  },
+
+  listLeaveRequests: async (filters?: { employee_id?: string; status?: string; leave_type?: string }) => {
+    const response = await apiClient.get('/api/leave/requests', { params: filters });
+    return response.data;
+  },
+
+  getLeaveRequest: async (requestId: string) => {
+    const response = await apiClient.get(`/api/leave/requests/${requestId}`);
+    return response.data;
+  },
+
+  updateLeaveRequest: async (requestId: string, leaveData: any) => {
+    const response = await apiClient.put(`/api/leave/requests/${requestId}`, leaveData);
+    return response.data;
+  },
+
+  approveLeaveRequest: async (requestId: string, approvedBy: string) => {
+    const response = await apiClient.post(`/api/leave/requests/${requestId}/approve`, null, {
+      params: { approved_by: approvedBy }
+    });
+    return response.data;
+  },
+
+  rejectLeaveRequest: async (requestId: string, approvedBy: string, rejectedReason: string) => {
+    const response = await apiClient.post(`/api/leave/requests/${requestId}/reject`, null, {
+      params: { approved_by: approvedBy, rejected_reason: rejectedReason }
+    });
+    return response.data;
+  },
+
+  getLeaveBalance: async (employeeId: string, year?: number) => {
+    const response = await apiClient.get(`/api/leave/balance/${employeeId}`, { params: { year } });
+    return response.data;
+  },
+
+  updateLeaveBalance: async (employeeId: string, balanceData: any) => {
+    const response = await apiClient.put(`/api/leave/balance/${employeeId}`, balanceData);
+    return response.data;
+  },
+
+  deleteLeaveRequest: async (requestId: string) => {
+    const response = await apiClient.delete(`/api/leave/requests/${requestId}`);
     return response.data;
   },
 };

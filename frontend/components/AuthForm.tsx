@@ -36,7 +36,7 @@ import {
 const formSchema = z.object({
   email: z.string().email({ message: 'Invalid email address.' }),
   password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
-  role: z.enum(['admin', 'recruiter', 'candidate']).optional(),
+  role: z.enum(['admin', 'recruiter', 'employee', 'candidate']).optional(),
 });
 
 type AuthFormProps = {
@@ -127,6 +127,7 @@ export function AuthForm({ isLogin }: AuthFormProps) {
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="candidate">Candidate</SelectItem>
+                        <SelectItem value="employee">Employee</SelectItem>
                         <SelectItem value="recruiter">Recruiter</SelectItem>
                         <SelectItem value="admin">Admin</SelectItem>
                       </SelectContent>
