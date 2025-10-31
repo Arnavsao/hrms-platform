@@ -38,6 +38,8 @@ async def start_screening(
             "communication_score": result.evaluation.communication_score,
             "domain_knowledge_score": result.evaluation.domain_knowledge_score,
             "overall_score": result.evaluation.overall_score,
+            "score": result.evaluation.overall_score,
+            "mode": request.mode,
         }
         
         supabase.table("screenings").insert(screening_data).execute()

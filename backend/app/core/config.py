@@ -23,6 +23,22 @@ class Settings(BaseSettings):
     AI_MODEL: str = "google/gemini-2.0-flash"
     AI_TEMPERATURE: float = 0.7
     AI_MAX_TOKENS: int = 2048
+    GEMINI_LIVE_MODEL: str = "models/gemini-2.5-flash-native-audio-preview-09-2025"
+    GEMINI_LIVE_VOICE: str = "Zephyr"
+    GEMINI_LIVE_SAMPLE_RATE_SEND: int = 16000
+    GEMINI_LIVE_SAMPLE_RATE_RECEIVE: int = 24000
+    VOICE_INTERVIEW_GREETING: str = (
+        "You are a friendly, professional HR interviewer having a natural conversation with a candidate. "
+        "Your goal is to make them feel comfortable while assessing their fit for the role. "
+        "Speak naturally and conversationally. After asking each question, stay completely silent and "
+        "give the candidate time to think and respond fully. Never interrupt while they're speaking. "
+        "Listen carefully to their answers before moving forward."
+    )
+    VOICE_INTERVIEW_MAX_QUESTIONS: int = 3
+    VOICE_INTERVIEW_STYLE: str = "behavioral"  # behavioral, technical, mixed
+    VOICE_INTERVIEW_ALLOW_FOLLOWUPS: bool = True
+    VOICE_INTERVIEW_MAX_FOLLOWUPS_PER_QUESTION: int = 1
+    VOICE_INTERVIEW_MIN_ANSWER_LENGTH: int = 30  # words - trigger follow-up if too short
     
     # File Upload Configuration
     MAX_UPLOAD_SIZE: int = 10485760  # 10MB

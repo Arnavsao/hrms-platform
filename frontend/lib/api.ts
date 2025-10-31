@@ -109,7 +109,17 @@ export interface ScreeningResponse {
     domain_knowledge_score: number;
     overall_score: number;
     summary: string;
+    strengths?: string[];
+    weaknesses?: string[];
   };
+}
+
+export interface VoiceInterviewSession {
+  session_id: string;
+}
+
+export interface VoiceInterviewFinalizeResponse extends ScreeningResponse {
+  session_id: string;
 }
 
 // API methods for interacting with the FastAPI backend
@@ -212,6 +222,28 @@ export const api = {
   // Get screening details
   getScreening: async (screeningId: string) => {
     const response = await apiClient.get(`/api/screenings/${screeningId}`);
+    return response.data;
+  },
+
+  // Voice interviews
+  createVoiceInterviewSession: async (
+    applicationId: string,
+    options?: { questionCount?: number },
+  ): Promise<VoiceInterviewSession> => {
+    const response = await apiClient.post('/api/voice-interviews/sessions', {
+      application_id: applicationId,
+      question_count: options?.questionCount,
+    });
+    return response.data;
+  },
+
+  finalizeVoiceInterviewSession: async (sessionId: string): Promise<VoiceInterviewFinalizeResponse> => {
+    const response = await apiClient.post(`/api/voice-interviews/sessions/${sessionId}/finalize`);
+    return response.data;
+  },
+
+  listScreeningsForApplication: async (applicationId: string) => {
+    const response = await apiClient.get(`/api/screenings/application/${applicationId}`);
     return response.data;
   },
 

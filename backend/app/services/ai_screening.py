@@ -14,19 +14,51 @@ async def generate_screening_questions(job_role: str, candidate_profile: Dict) -
     try:
         model = genai.GenerativeModel('gemini-2.0-flash')
         
+        interview_style = settings.VOICE_INTERVIEW_STYLE
+        
+        style_instructions = {
+            "behavioral": """
+Focus on behavioral and situational questions using the STAR method (Situation, Task, Action, Result).
+Assess soft skills, problem-solving approach, teamwork, and cultural fit.
+Questions should be conversational and open-ended.
+Examples: "Tell me about a time when...", "Describe a situation where...", "How do you handle..."
+""",
+            "technical": """
+Focus on technical knowledge and practical application.
+Ask about technologies, methodologies, and real-world problem-solving.
+Questions should test understanding without being too deep or academic.
+Examples: "How would you approach...", "Explain your experience with...", "Walk me through..."
+""",
+            "mixed": """
+Mix behavioral questions (60%) with light technical questions (40%).
+Behavioral: teamwork, communication, problem-solving, adaptability.
+Technical: high-level understanding, practical experience, approach to challenges.
+"""
+        }
+        
+        style_guide = style_instructions.get(interview_style, style_instructions["behavioral"])
+        
         prompt = f"""
-        Generate 3 screening interview questions for a candidate.
-        
-        Job Role: {job_role}
-        Candidate Profile: {candidate_profile}
-        
-        Questions should:
-        1. Test domain knowledge relevant to the role
-        2. Assess communication skills
-        3. Be open-ended but specific
-        
-        Return questions as a JSON array of strings.
-        """
+Generate 3 screening interview questions for a candidate applying for: {job_role}
+
+Candidate Background:
+{candidate_profile}
+
+Interview Style: {interview_style}
+
+{style_guide}
+
+Important Guidelines:
+- Make questions conversational and engaging, not interrogative
+- Each question should encourage detailed, story-based responses
+- Avoid yes/no questions or questions with one-word answers
+- Avoid deep technical coding questions or algorithm challenges
+- Focus on real-world scenarios and experiences
+- Questions should feel natural in a voice conversation
+
+Return ONLY a JSON array of 3 question strings, no other text.
+Example format: ["Question 1?", "Question 2?", "Question 3?"]
+"""
         
         response = model.generate_content(prompt)
         result_text = response.text.strip()
@@ -43,14 +75,16 @@ async def generate_screening_questions(job_role: str, candidate_profile: Dict) -
         import json
         questions = json.loads(result_text)
         
+        logger.info(f"Generated {len(questions)} {interview_style} screening questions")
         return questions
     
     except Exception as e:
         logger.error(f"Error generating questions: {str(e)}")
+        # Behavioral fallback questions
         return [
-            "Tell me about your experience with the technologies mentioned in the job description.",
-            "Describe a challenging project you worked on and how you overcame obstacles.",
-            "Where do you see yourself in the next 2-3 years?"
+            "Tell me about a time when you had to learn something new quickly for a project. How did you approach it?",
+            "Describe a situation where you had to work with a difficult team member. How did you handle it?",
+            "What excites you most about this role, and how does it align with your career goals?"
         ]
 
 async def evaluate_screening_responses(questions: List[str], responses: List[str]) -> ScreeningEvaluation:

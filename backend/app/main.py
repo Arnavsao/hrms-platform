@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.logging import setup_logging
-from app.api import candidates, jobs, applications, screenings, digital_footprints, admin
+from app.api import candidates, jobs, applications, screenings, digital_footprints, admin, voice_interviews
 
 # Setup logging
 setup_logging()
@@ -17,9 +17,18 @@ app = FastAPI(
 )
 
 # Configure CORS to allow frontend to communicate with backend
+allowed_origins = settings.CORS_ORIGINS
+if isinstance(allowed_origins, str):
+    # Env vars sometimes provide a comma-separated string
+    allowed_origins = [o.strip() for o in allowed_origins.split(",") if o.strip()]
+
+# In local development it's helpful to allow the frontend origin explicitly
+if not allowed_origins:
+    allowed_origins = ["http://localhost:3000"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -32,6 +41,7 @@ app.include_router(applications.router, prefix="/api/applications", tags=["Appli
 app.include_router(screenings.router, prefix="/api/screenings", tags=["Screenings"])
 app.include_router(digital_footprints.router, prefix="/api/footprints", tags=["Digital Footprints"])
 app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])
+app.include_router(voice_interviews.router, prefix="/api/voice-interviews", tags=["Voice Interviews"])
 
 @app.get("/")
 async def root():

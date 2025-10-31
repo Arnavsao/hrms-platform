@@ -55,9 +55,17 @@ export type Database = {
         Row: {
           id: string;
           application_id: string;
-          transcript: string | null;
+          transcript: string;
           ai_summary: any; // JSONB
           score: number | null;
+          communication_score: number | null;
+          domain_knowledge_score: number | null;
+          overall_score: number | null;
+          mode: string | null;
+          duration_seconds: number | null;
+          audio_url: string | null;
+          session_metadata: any; // JSONB
+          transcript_tokens: any; // JSONB
           created_at: string;
           updated_at: string;
         };

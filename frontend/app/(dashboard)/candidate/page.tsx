@@ -19,7 +19,8 @@ import {
   XCircle,
   AlertCircle,
   ExternalLink,
-  Eye
+  Eye,
+  Mic
 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 
@@ -373,13 +374,22 @@ export default function CandidateDashboard() {
                         </div>
 
                         <div className="mt-4 lg:mt-0 lg:ml-6">
-                          <Button
-                            variant="outline"
-                            onClick={() => router.push(`/jobs/${application.job_id}`)}
-                          >
-                            <Eye className="mr-2 h-4 w-4" />
-                            View Job
-                          </Button>
+                          <div className="flex flex-col gap-2">
+                            <Button
+                              variant="outline"
+                              onClick={() => router.push(`/jobs/${application.job_id}`)}
+                            >
+                              <Eye className="mr-2 h-4 w-4" />
+                              View Job
+                            </Button>
+                            <Button
+                              variant="secondary"
+                              onClick={() => router.push(`/candidate/interviews/${application.id}`)}
+                            >
+                              <Mic className="mr-2 h-4 w-4" />
+                              Voice Interview
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </CardContent>
