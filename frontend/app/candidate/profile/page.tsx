@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/AuthContext';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -94,6 +95,8 @@ export default function CandidateProfilePage() {
   const [candidateId, setCandidateId] = useState<string | null>(null);
   const [newSkill, setNewSkill] = useState('');
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState<boolean>(true);
+  const { session } = useAuth();
 
   const form = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
@@ -126,21 +129,23 @@ export default function CandidateProfilePage() {
   // Load existing candidate profile on mount
   useEffect(() => {
     loadCandidateProfile();
-  }, []);
+  }, [session?.user?.email]);
 
   const loadCandidateProfile = async () => {
     try {
-      // Try to get candidate by email from localStorage or session
-      const userEmail = localStorage.getItem('userEmail');
+      // Try to get candidate by email from session, fallback to localStorage
+      const userEmail = session?.user?.email || localStorage.getItem('userEmail');
       if (userEmail) {
         const candidate = await api.getCandidateByEmail(userEmail);
         if (candidate) {
           setCandidateId(candidate.id);
           populateFormFromCandidate(candidate);
+          setIsEditing(false);
         }
       }
     } catch (err) {
       console.log('No existing profile found');
+      setIsEditing(true);
     }
   };
 
@@ -181,6 +186,7 @@ export default function CandidateProfilePage() {
     onDrop,
     maxFiles: 1,
     maxSize: MAX_FILE_SIZE,
+    disabled: !isEditing,
     accept: {
       'application/pdf': ['.pdf'],
       'application/msword': ['.doc'],
@@ -310,6 +316,7 @@ export default function CandidateProfilePage() {
 
       setSuccessMessage('Profile saved successfully!');
       localStorage.setItem('userEmail', data.email);
+      setIsEditing(false);
     } catch (err: any) {
       setError(err.response?.data?.detail || err.message || 'Failed to save profile');
     } finally {
@@ -322,7 +329,23 @@ export default function CandidateProfilePage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">My Profile</h1>
-          <p className="text-muted-foreground">Upload your resume or fill in your details manually</p>
+          <p className="text-muted-foreground">Upload your resume or edit your details</p>
+        </div>
+        <div className="flex items-center gap-2">
+          {!isEditing ? (
+            <Button type="button" variant="default" onClick={() => setIsEditing(true)}>
+              Edit Profile
+            </Button>
+          ) : (
+            <>
+              <Button type="button" variant="outline" onClick={() => { loadCandidateProfile(); setIsEditing(false); }}>
+                Cancel
+              </Button>
+              <Button formAction="submit" type="submit" disabled={isSaving}>
+                {isSaving ? 'Saving...' : 'Save'}
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -340,13 +363,14 @@ export default function CandidateProfilePage() {
         <CardContent>
           <div
             {...getRootProps()}
-            className={`flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-lg cursor-pointer transition-colors
+            className={`flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-lg transition-colors
+            ${isEditing ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}
             ${isDragActive ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'}`}
           >
             <input {...getInputProps()} />
             <UploadCloud className="w-12 h-12 text-muted-foreground" />
             <p className="mt-4 text-center text-muted-foreground">
-              {isDragActive ? 'Drop the resume here...' : "Drag 'n' drop a resume here, or click to select a file"}
+              {isEditing ? (isDragActive ? 'Drop the resume here...' : "Drag 'n' drop a resume here, or click to select a file") : 'Click Edit to upload a new resume'}
             </p>
             <p className="text-xs text-muted-foreground mt-1">PDF, DOC, DOCX (up to 10MB)</p>
           </div>
@@ -360,7 +384,7 @@ export default function CandidateProfilePage() {
                   <p className="text-sm text-muted-foreground">{formatFileSize(uploadedFile.size)}</p>
                 </div>
               </div>
-              <Button variant="ghost" size="icon" onClick={handleRemoveFile}>
+              <Button variant="ghost" size="icon" onClick={handleRemoveFile} disabled={!isEditing}>
                 <X className="w-4 h-4" />
               </Button>
             </div>
@@ -405,6 +429,7 @@ export default function CandidateProfilePage() {
                   id="name"
                   {...form.register('name')}
                   placeholder="John Doe"
+                  disabled={!isEditing}
                 />
                 {form.formState.errors.name && (
                   <p className="text-sm text-destructive">{form.formState.errors.name.message}</p>
@@ -418,6 +443,7 @@ export default function CandidateProfilePage() {
                   type="email"
                   {...form.register('email')}
                   placeholder="john@example.com"
+                  disabled={!isEditing}
                 />
                 {form.formState.errors.email && (
                   <p className="text-sm text-destructive">{form.formState.errors.email.message}</p>
@@ -432,6 +458,7 @@ export default function CandidateProfilePage() {
                 type="tel"
                 {...form.register('phone')}
                 placeholder="+1 (555) 123-4567"
+                disabled={!isEditing}
               />
             </div>
           </CardContent>
@@ -452,8 +479,9 @@ export default function CandidateProfilePage() {
                 onChange={(e) => setNewSkill(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addSkill())}
                 placeholder="Add a skill (e.g., JavaScript, Python)"
+                disabled={!isEditing}
               />
-              <Button type="button" onClick={addSkill} variant="outline">
+              <Button type="button" onClick={addSkill} variant="outline" disabled={!isEditing}>
                 <Plus className="h-4 w-4" />
               </Button>
             </div>
@@ -466,6 +494,7 @@ export default function CandidateProfilePage() {
                     type="button"
                     onClick={() => removeSkill(skill)}
                     className="ml-2 hover:text-destructive"
+                    disabled={!isEditing}
                   >
                     <X className="h-3 w-3" />
                   </button>
@@ -486,7 +515,7 @@ export default function CandidateProfilePage() {
                 <Briefcase className="h-5 w-5" />
                 Work Experience
               </CardTitle>
-              <Button type="button" onClick={addExperience} variant="outline" size="sm">
+              <Button type="button" onClick={addExperience} variant="outline" size="sm" disabled={!isEditing}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add Experience
               </Button>
@@ -505,6 +534,7 @@ export default function CandidateProfilePage() {
                       onClick={() => removeExperience(index)}
                       variant="ghost"
                       size="sm"
+                      disabled={!isEditing}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -516,6 +546,7 @@ export default function CandidateProfilePage() {
                       <Input
                         {...form.register(`experience.${index}.company` as const)}
                         placeholder="Company name"
+                        disabled={!isEditing}
                       />
                     </div>
                     <div className="space-y-2">
@@ -523,6 +554,7 @@ export default function CandidateProfilePage() {
                       <Input
                         {...form.register(`experience.${index}.position` as const)}
                         placeholder="Job title"
+                        disabled={!isEditing}
                       />
                     </div>
                   </div>
@@ -532,6 +564,7 @@ export default function CandidateProfilePage() {
                     <Input
                       {...form.register(`experience.${index}.duration` as const)}
                       placeholder="e.g., Jan 2020 - Present"
+                      disabled={!isEditing}
                     />
                   </div>
 
@@ -541,6 +574,7 @@ export default function CandidateProfilePage() {
                       {...form.register(`experience.${index}.description` as const)}
                       placeholder="Describe your role and achievements"
                       rows={3}
+                      disabled={!isEditing}
                     />
                   </div>
                 </div>
@@ -557,7 +591,7 @@ export default function CandidateProfilePage() {
                 <GraduationCap className="h-5 w-5" />
                 Education
               </CardTitle>
-              <Button type="button" onClick={addEducation} variant="outline" size="sm">
+              <Button type="button" onClick={addEducation} variant="outline" size="sm" disabled={!isEditing}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add Education
               </Button>
@@ -576,6 +610,7 @@ export default function CandidateProfilePage() {
                       onClick={() => removeEducation(index)}
                       variant="ghost"
                       size="sm"
+                      disabled={!isEditing}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -587,6 +622,7 @@ export default function CandidateProfilePage() {
                       <Input
                         {...form.register(`education.${index}.institution` as const)}
                         placeholder="University name"
+                        disabled={!isEditing}
                       />
                     </div>
                     <div className="space-y-2">
@@ -594,6 +630,7 @@ export default function CandidateProfilePage() {
                       <Input
                         {...form.register(`education.${index}.degree` as const)}
                         placeholder="e.g., Bachelor's"
+                        disabled={!isEditing}
                       />
                     </div>
                   </div>
@@ -604,6 +641,7 @@ export default function CandidateProfilePage() {
                       <Input
                         {...form.register(`education.${index}.field` as const)}
                         placeholder="e.g., Computer Science"
+                        disabled={!isEditing}
                       />
                     </div>
                     <div className="space-y-2">
@@ -611,6 +649,7 @@ export default function CandidateProfilePage() {
                       <Input
                         {...form.register(`education.${index}.year` as const)}
                         placeholder="e.g., 2020"
+                        disabled={!isEditing}
                       />
                     </div>
                   </div>
@@ -636,6 +675,7 @@ export default function CandidateProfilePage() {
                 type="url"
                 {...form.register('links.github')}
                 placeholder="https://github.com/username"
+                disabled={!isEditing}
               />
             </div>
 
@@ -646,6 +686,7 @@ export default function CandidateProfilePage() {
                 type="url"
                 {...form.register('links.linkedin')}
                 placeholder="https://linkedin.com/in/username"
+                disabled={!isEditing}
               />
             </div>
 
@@ -656,6 +697,7 @@ export default function CandidateProfilePage() {
                 type="url"
                 {...form.register('links.portfolio')}
                 placeholder="https://yourportfolio.com"
+                disabled={!isEditing}
               />
             </div>
           </CardContent>
@@ -663,19 +705,21 @@ export default function CandidateProfilePage() {
 
         {/* Submit Button */}
         <div className="flex justify-end gap-4">
-          <Button type="submit" disabled={isSaving} size="lg">
-            {isSaving ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <Save className="mr-2 h-4 w-4" />
-                Save Profile
-              </>
-            )}
-          </Button>
+          {isEditing && (
+            <Button type="submit" disabled={isSaving} size="lg">
+              {isSaving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="mr-2 h-4 w-4" />
+                  Save Profile
+                </>
+              )}
+            </Button>
+          )}
         </div>
       </form>
     </div>

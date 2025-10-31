@@ -9,7 +9,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import {
-  Upload,
   Briefcase,
   FileText,
   TrendingUp,
@@ -135,13 +134,6 @@ export default function CandidateDashboard() {
       color: 'bg-indigo-500 hover:bg-indigo-600',
     },
     {
-      title: 'Upload Resume',
-      description: 'Update your profile with latest resume',
-      icon: <Upload className="h-6 w-6" />,
-      onClick: () => router.push('/candidates/upload'),
-      color: 'bg-blue-500 hover:bg-blue-600',
-    },
-    {
       title: 'Browse Jobs',
       description: 'Find and apply to new opportunities',
       icon: <Briefcase className="h-6 w-6" />,
@@ -250,7 +242,7 @@ export default function CandidateDashboard() {
           {/* Quick Actions */}
           <div className="bg-white rounded-lg shadow-sm p-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-6">Quick Actions</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               {quickActions.map((action, index) => (
                 <Card key={index} className="cursor-pointer hover:shadow-lg transition-shadow">
                   <CardContent className="p-6">
@@ -309,7 +301,7 @@ export default function CandidateDashboard() {
                           <div className="flex items-start justify-between mb-3">
                             <div>
                               <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                                {application.job_title || 'Job Position'}
+                                {application.job_title}
                               </h3>
                               <div className="flex items-center space-x-3">
                                 <Badge variant={getStatusBadgeVariant(application.status)} className="flex items-center space-x-1">

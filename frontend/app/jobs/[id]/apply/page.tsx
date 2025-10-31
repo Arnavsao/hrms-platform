@@ -1,18 +1,21 @@
 "use client";
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { api, MatchCandidateResponse } from '@/lib/api';
 import { useAuth } from '@/lib/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
-export default function JobApplicationPage({ 
-  params 
-}: { 
-  params: { id: string } 
+export default function JobApplicationPage({
+  params
+}: {
+  params: { id: string }
 }) {
   const { session } = useAuth();
+  const router = useRouter();
   const [job, setJob] = useState<any>(null);
   const [email, setEmail] = useState<string>(session?.user?.email || '');
   const [submitting, setSubmitting] = useState(false);
@@ -20,6 +23,13 @@ export default function JobApplicationPage({
   const [error, setError] = useState<string | null>(null);
   const [resume, setResume] = useState<File | null>(null);
   const [coverLetter, setCoverLetter] = useState<string>("");
+  const [alreadyApplied, setAlreadyApplied] = useState<boolean>(false);
+  const [candidateId, setCandidateId] = useState<string | null>(null);
+  const [matching, setMatching] = useState<boolean>(false);
+  const [showAppliedDialog, setShowAppliedDialog] = useState<boolean>(false);
+
+  const userRole = session?.user?.role;
+  const isRecruiter = userRole === 'recruiter' || userRole === 'admin';
 
   useEffect(() => {
     async function loadJob() {
@@ -34,25 +44,116 @@ export default function JobApplicationPage({
     loadJob();
   }, [params.id]);
 
+  // Check if candidate already applied
+  useEffect(() => {
+    async function checkAlreadyApplied() {
+      try {
+        const candidate = email ? await api.getCandidateByEmail(email) : null;
+        const resolvedId = candidate?.id || null;
+        setCandidateId(resolvedId);
+        if (!resolvedId) {
+          setAlreadyApplied(false);
+          return;
+        }
+        const apps = await api.listApplications(params.id, resolvedId);
+        setAlreadyApplied((apps || []).length > 0);
+      } catch (_) {
+        setAlreadyApplied(false);
+      }
+    }
+    checkAlreadyApplied();
+  }, [email, params.id]);
+
+  // Prevent recruiters from accessing this page
+  if (isRecruiter) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="container mx-auto px-6 py-8 max-w-3xl">
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <div className="text-center">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Access Denied
+                </h3>
+                <p className="text-gray-500 mb-4">
+                  Recruiters cannot apply to jobs. This page is only for candidates.
+                </p>
+                <Button onClick={() => router.push(`/jobs/${params.id}`)}>
+                  View Job Details
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  const runAiMatch = async () => {
+    setMatching(true);
+    setError(null);
+    setResult(null);
+    try {
+      let resolvedId: string | undefined = candidateId || undefined;
+      if (!resolvedId && email) {
+        try {
+          const candidate = await api.getCandidateByEmail(email);
+          resolvedId = candidate?.id;
+        } catch (_) {}
+      }
+
+      if (!resolvedId) {
+        if (!resume) {
+          setError('Candidate profile not found. Upload a resume to run AI match.');
+          setMatching(false);
+          return;
+        }
+        try {
+          const parsed = await api.parseResume(resume);
+          resolvedId = parsed.candidate_id;
+          if (!email && parsed?.parsed_data?.email) {
+            setEmail(parsed.parsed_data.email);
+          }
+        } catch (parseErr: any) {
+          setError(parseErr?.response?.data?.detail || 'Failed to parse resume');
+          setMatching(false);
+          return;
+        }
+      }
+
+      setCandidateId(resolvedId || null);
+
+      const match = await api.matchCandidate({
+        job_id: params.id,
+        candidate_id: resolvedId,
+        candidate_email: resolvedId ? undefined : email || undefined,
+        cover_letter: coverLetter || undefined,
+      });
+      setResult(match);
+    } catch (err: any) {
+      console.error('AI Match error', err);
+      setError(err?.response?.data?.detail || 'Failed to run AI Match');
+    } finally {
+      setMatching(false);
+    }
+  };
+
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     setError(null);
-    setResult(null);
     try {
-      // Try to resolve candidate by email for better UX
-      let candidateId: string | undefined = undefined;
-      if (email) {
+      // Resolve candidate by email for application
+      let resolvedId: string | undefined = candidateId || undefined;
+      if (!resolvedId && email) {
         try {
           const candidate = await api.getCandidateByEmail(email);
-          candidateId = candidate?.id;
-        } catch (_) {
-          // Will fallback to email-based matching
-        }
+          resolvedId = candidate?.id;
+        } catch (_) {}
       }
 
       // If no candidate found, attempt to create via resume parse
-      if (!candidateId) {
+      if (!resolvedId) {
         if (!resume) {
           setError('Candidate profile not found. Please upload your resume to create your profile.');
           setSubmitting(false);
@@ -60,7 +161,7 @@ export default function JobApplicationPage({
         }
         try {
           const parsed = await api.parseResume(resume);
-          candidateId = parsed.candidate_id;
+          resolvedId = parsed.candidate_id;
           // If the user typed a different email, keep it; otherwise, adopt parsed email
           if (!email && parsed?.parsed_data?.email) {
             setEmail(parsed.parsed_data.email);
@@ -72,13 +173,16 @@ export default function JobApplicationPage({
         }
       }
 
-      const match = await api.matchCandidate({
+      // Create the application. If AI match already ran, include those results.
+      await api.createApplication({
+        candidate_id: resolvedId as string,
         job_id: params.id,
-        candidate_id: candidateId,
-        candidate_email: candidateId ? undefined : email || undefined,
-        cover_letter: coverLetter || undefined,
+        fit_score: result?.fit_score,
+        highlights: result?.highlights,
+        status: 'pending',
       });
-      setResult(match);
+      setAlreadyApplied(true);
+      setShowAppliedDialog(true);
     } catch (err: any) {
       console.error('Apply error', err);
       setError(err?.response?.data?.detail || 'Failed to submit application');
@@ -88,6 +192,7 @@ export default function JobApplicationPage({
   };
 
   return (
+    <>
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-6 py-8 max-w-3xl">
         <div className="space-y-8">
@@ -135,9 +240,14 @@ export default function JobApplicationPage({
                   />
                 </div>
 
-                <Button type="submit" disabled={submitting}>
-                  {submitting ? 'Submitting...' : 'Submit application'}
-                </Button>
+                <div className="flex items-center gap-3">
+                  <Button type="button" onClick={runAiMatch} disabled={matching} variant="outline">
+                    {matching ? 'Matching...' : 'AI Match'}
+                  </Button>
+                  <Button type="submit" disabled={submitting || alreadyApplied}>
+                    {alreadyApplied ? 'Applied' : (submitting ? 'Submitting...' : 'Apply Now')}
+                  </Button>
+                </div>
               </form>
 
               {error && (
@@ -171,6 +281,21 @@ export default function JobApplicationPage({
         </div>
       </div>
     </div>
+    <Dialog open={showAppliedDialog} onOpenChange={setShowAppliedDialog}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Application Submitted</DialogTitle>
+          <DialogDescription>
+            Your application has been submitted successfully{result ? ` with an AI match score of ${Math.round(result.fit_score)}%` : ''}.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex justify-end gap-2 mt-4">
+          <Button variant="outline" onClick={() => setShowAppliedDialog(false)}>Close</Button>
+          <Button onClick={() => { setShowAppliedDialog(false); router.push('/candidate'); }}>Go to Dashboard</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
 

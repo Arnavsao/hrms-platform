@@ -20,7 +20,6 @@ import {
   GraduationCap,
   Briefcase,
   User,
-  Upload,
   FileText
 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
@@ -204,18 +203,6 @@ export default function CandidatesPage() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => router.push('/candidates/upload')}>
-                <CardContent className="p-6">
-                  <div className="flex items-center gap-3">
-                    <Upload className="h-5 w-5 text-blue-600" />
-                    <div>
-                      <p className="font-medium text-gray-900">Upload Resume</p>
-                      <p className="text-sm text-gray-500">Parse resume and build your profile</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
               <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => router.push('/jobs')}>
                 <CardContent className="p-6">
                   <div className="flex items-center gap-3">
