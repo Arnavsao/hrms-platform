@@ -197,7 +197,13 @@ export const api = {
     const response = await apiClient.put(`/api/jobs/${jobId}`, jobData);
     return response.data;
   },
-  
+
+  // Update job status
+  updateJobStatus: async (jobId: string, status: string) => {
+    const response = await apiClient.patch(`/api/jobs/${jobId}/status`, { status });
+    return response.data;
+  },
+
   // Delete a job
   deleteJob: async (jobId: string) => {
     const response = await apiClient.delete(`/api/jobs/${jobId}`);

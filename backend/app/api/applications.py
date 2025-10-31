@@ -113,16 +113,33 @@ async def list_applications(
     candidate_id: str | None = None,
     supabase: Client = Depends(get_supabase_client)
 ):
-    """List all applications, optionally filtered by job_id"""
+    """List all applications, optionally filtered by job_id or candidate_id"""
     try:
         query = supabase.table("applications").select("*").order("created_at", desc=True)
         if job_id:
             query = query.eq("job_id", job_id)
         if candidate_id:
             query = query.eq("candidate_id", candidate_id)
-            
+
         response = query.execute()
-        return response.data
+        applications = response.data or []
+
+        # Enrich with job information
+        for app in applications:
+            try:
+                job_response = supabase.table("jobs").select("id, title, company, location, status").eq("id", app["job_id"]).single().execute()
+                if job_response.data:
+                    app["job_title"] = job_response.data.get("title", "Job Position")
+                    app["company"] = job_response.data.get("company")
+                    app["location"] = job_response.data.get("location")
+                    app["job_status"] = job_response.data.get("status")
+                else:
+                    app["job_title"] = "Job Position"
+            except Exception as job_err:
+                logger.warning(f"Could not fetch job details for {app['job_id']}: {str(job_err)}")
+                app["job_title"] = "Job Position"
+
+        return applications
     except Exception as e:
         logger.error(f"Error listing applications: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to retrieve applications.")

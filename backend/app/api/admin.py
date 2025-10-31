@@ -71,9 +71,9 @@ async def get_analytics_overview(
         shortlisted_apps = len([a for a in applications_data if a.get('status') == 'shortlisted'])
 
         # Calculate growth metrics (last 7 days vs previous 7 days)
-        now = datetime.utcnow()
+        from datetime import timezone
+        now = datetime.now(timezone.utc)
         week_ago = now - timedelta(days=7)
-        two_weeks_ago = now - timedelta(days=14)
 
         recent_candidates = len([c for c in (candidates_response.data or [])
                                 if datetime.fromisoformat(c['created_at'].replace('Z', '+00:00')) > week_ago])
@@ -170,24 +170,67 @@ async def list_all_users(
 ):
     """
     List all users in the system with filtering options.
-    Admin can view candidates, recruiters, and other admins.
+    Admin can view all authenticated users from auth.users table.
     """
     try:
-        # Get candidates
-        candidates = supabase.table("candidates").select("id, name, email, created_at, parsed_data").execute()
+        # Fetch all users from auth.users table
+        auth_users_response = supabase.auth.admin.list_users()
 
         users = []
 
-        # Format candidates
-        for candidate in (candidates.data or []):
+        # Get candidates table for additional data (name lookup)
+        candidates_response = supabase.table("candidates").select("id, name").execute()
+        candidates_map = {c['id']: c for c in (candidates_response.data or [])}
+
+        # Format users from auth.users
+        for auth_user in auth_users_response:
+            user_id = str(auth_user.id)
+            email = getattr(auth_user, 'email', None)
+
+            # Get user metadata for role (use correct attribute names)
+            user_metadata = getattr(auth_user, 'user_metadata', {}) or {}
+            app_metadata = getattr(auth_user, 'app_metadata', {}) or {}
+
+            # Determine role from metadata or app_metadata
+            user_role = (
+                user_metadata.get('role') or
+                app_metadata.get('role') or
+                'candidate'  # Default to candidate
+            )
+
+            # Get name from candidates table or metadata
+            name = None
+            if user_id in candidates_map:
+                name = candidates_map[user_id].get('name')
+
+            # Fallback to metadata or email
+            if not name:
+                name = (
+                    user_metadata.get('name') or
+                    email.split('@')[0] if email else "Unknown User"
+                )
+
+            # Determine status from auth user
+            user_status = "active"
+            banned_until = getattr(auth_user, 'banned_until', None)
+            deleted_at = getattr(auth_user, 'deleted_at', None)
+
+            if banned_until:
+                user_status = "suspended"
+            elif deleted_at:
+                user_status = "deactivated"
+
+            created_at = getattr(auth_user, 'created_at', None)
+            last_sign_in = getattr(auth_user, 'last_sign_in_at', None)
+
             users.append({
-                "id": candidate['id'],
-                "name": candidate['name'],
-                "email": candidate['email'],
-                "role": "candidate",
-                "status": "active",  # Default status
-                "created_at": candidate['created_at'],
-                "last_active": candidate['created_at'],  # Mock data
+                "id": user_id,
+                "name": name,
+                "email": email or "No email",
+                "role": user_role,
+                "status": user_status,
+                "created_at": created_at,
+                "last_active": last_sign_in or created_at,
                 "applications_count": 0,  # Will be populated if needed
             })
 
@@ -337,43 +380,43 @@ async def get_audit_log(
         {
             "id": "1",
             "timestamp": datetime.utcnow().isoformat(),
-            "event_type": "user_login",
+            "action": "user_login",
             "user_email": "admin@example.com",
             "ip_address": "192.168.1.1",
             "status": "success",
-            "details": "Admin login successful"
+            "resource_type": "auth"
         },
         {
             "id": "2",
             "timestamp": (datetime.utcnow() - timedelta(minutes=15)).isoformat(),
-            "event_type": "user_deleted",
+            "action": "user_deleted",
             "user_email": "admin@example.com",
             "ip_address": "192.168.1.1",
             "status": "success",
-            "details": "Deleted candidate account"
+            "resource_type": "candidate"
         },
         {
             "id": "3",
             "timestamp": (datetime.utcnow() - timedelta(hours=1)).isoformat(),
-            "event_type": "settings_changed",
+            "action": "settings_changed",
             "user_email": "admin@example.com",
             "ip_address": "192.168.1.1",
             "status": "success",
-            "details": "Updated AI matching threshold"
+            "resource_type": "settings"
         },
         {
             "id": "4",
             "timestamp": (datetime.utcnow() - timedelta(hours=2)).isoformat(),
-            "event_type": "failed_login",
+            "action": "failed_login",
             "user_email": "unknown@example.com",
             "ip_address": "203.45.67.89",
             "status": "failed",
-            "details": "Invalid credentials"
+            "resource_type": "auth"
         },
     ]
 
     return {
-        "logs": mock_logs[offset:offset+limit],
+        "entries": mock_logs[offset:offset+limit],
         "total": len(mock_logs)
     }
 
@@ -386,24 +429,27 @@ async def get_active_sessions(
     Get list of active user sessions.
     """
     # Mock active sessions
+    now = datetime.utcnow()
     mock_sessions = [
         {
             "id": "session-1",
+            "user_id": "user-1",
             "user_email": "admin@example.com",
-            "user_role": "admin",
             "ip_address": "192.168.1.1",
-            "user_agent": "Mozilla/5.0...",
-            "last_activity": datetime.utcnow().isoformat(),
-            "duration_minutes": 45
+            "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+            "created_at": (now - timedelta(minutes=45)).isoformat(),
+            "last_activity": now.isoformat(),
+            "expires_at": (now + timedelta(hours=1)).isoformat()
         },
         {
             "id": "session-2",
+            "user_id": "user-2",
             "user_email": "recruiter@example.com",
-            "user_role": "recruiter",
             "ip_address": "192.168.1.5",
-            "user_agent": "Chrome/120.0...",
-            "last_activity": (datetime.utcnow() - timedelta(minutes=10)).isoformat(),
-            "duration_minutes": 120
+            "user_agent": "Chrome/120.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "created_at": (now - timedelta(hours=2)).isoformat(),
+            "last_activity": (now - timedelta(minutes=10)).isoformat(),
+            "expires_at": (now + timedelta(minutes=50)).isoformat()
         },
     ]
 
@@ -439,15 +485,21 @@ async def get_security_threats(
         "threats": [
             {
                 "id": "threat-1",
-                "type": "multiple_failed_logins",
+                "type": "failed_login",
                 "severity": "medium",
+                "description": "Multiple failed login attempts detected from suspicious IP",
                 "ip_address": "203.45.67.89",
-                "count": 5,
-                "first_seen": (datetime.utcnow() - timedelta(hours=2)).isoformat(),
-                "last_seen": datetime.utcnow().isoformat(),
-                "status": "active"
+                "detected_at": (datetime.utcnow() - timedelta(hours=2)).isoformat(),
+                "resolved": False
+            },
+            {
+                "id": "threat-2",
+                "type": "rate_limit",
+                "severity": "low",
+                "description": "Rate limit exceeded for API endpoint",
+                "ip_address": "45.67.89.123",
+                "detected_at": (datetime.utcnow() - timedelta(hours=5)).isoformat(),
+                "resolved": True
             }
-        ],
-        "total_active_threats": 1,
-        "threat_level": "low"
+        ]
     }

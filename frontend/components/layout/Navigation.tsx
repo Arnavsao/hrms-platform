@@ -26,7 +26,6 @@ import {
   LogOut,
   User,
   BarChart3,
-  Upload,
   Search,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -84,12 +83,6 @@ export function Navigation({ className }: NavigationProps) {
         href: '/candidate/profile',
         icon: User,
         current: pathname.startsWith('/candidate/profile'),
-      },
-      {
-        name: 'Upload Resume',
-        href: '/candidates/upload',
-        icon: Upload,
-        current: pathname.startsWith('/candidates/upload'),
       },
       {
         name: 'Browse Jobs',
