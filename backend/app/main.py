@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.logging import setup_logging
-from app.api import candidates, jobs, applications, screenings, digital_footprints, admin
+from app.api import candidates, jobs, applications, screenings, digital_footprints, admin, employees, attendance, payroll, performance, leave
 
 # Setup logging
 setup_logging()
@@ -19,7 +19,7 @@ app = FastAPI(
 # Configure CORS to allow frontend to communicate with backend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=settings.cors_origins_list,  # Use the parsed list
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -32,6 +32,11 @@ app.include_router(applications.router, prefix="/api/applications", tags=["Appli
 app.include_router(screenings.router, prefix="/api/screenings", tags=["Screenings"])
 app.include_router(digital_footprints.router, prefix="/api/footprints", tags=["Digital Footprints"])
 app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])
+app.include_router(employees.router, prefix="/api/employees", tags=["Employees"])
+app.include_router(attendance.router, prefix="/api/attendance", tags=["Attendance"])
+app.include_router(payroll.router, prefix="/api/payroll", tags=["Payroll"])
+app.include_router(performance.router, prefix="/api/performance", tags=["Performance"])
+app.include_router(leave.router, prefix="/api/leave", tags=["Leave Management"])
 
 @app.get("/")
 async def root():
