@@ -260,7 +260,7 @@ export default function EmployeePerformancePage() {
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4" />
-              Completed
+              Jira Tasks Completed
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -275,7 +275,7 @@ export default function EmployeePerformancePage() {
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <Clock className="h-4 w-4" />
-              Pending
+              Github Commits
             </CardTitle>
           </CardHeader>
           <CardContent>
