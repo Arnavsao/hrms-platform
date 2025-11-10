@@ -1,4 +1,4 @@
-# AI-Powered HRMS API Documentation
+90824# AI-Powered HRMS API Documentation
 
 ## Base URL
 
@@ -294,6 +294,65 @@ Create a new job posting.
   "requirements": "5+ years Python, FastAPI, React"
 }
 ```
+
+---
+
+## Employees API
+
+### Create Employee
+
+**POST** `/api/employees/`
+
+Create a new employee and initialize leave balance for the current year.
+
+**Request:**
+```json
+{
+  "name": "Jane Doe",
+  "email": "jane@example.com",
+  "phone": "+1234567890",
+  "department": "Engineering",
+  "position": "Senior Engineer",
+  "employee_id": "EMP001",
+  "joined_date": "2025-01-15",
+  "status": "active",
+  "base_salary": 120000,
+  "manager_id": null,
+  "address": "123 Main St",
+  "date_of_birth": "1995-03-20",
+  "emergency_contact": {"name": "John", "phone": "+123"}
+}
+```
+
+### List Employees
+
+**GET** `/api/employees/`
+
+Optional query params: `department`, `status`, `search`.
+
+### Get Employee Profile
+
+**GET** `/api/employees/{employee_id}`
+
+Returns employee details plus aggregated stats (attendance, leave, performance).
+
+### Update Employee
+
+**PUT** `/api/employees/{employee_id}`
+
+Update mutable fields (e.g., department, position, status, salary, address).
+
+### Delete Employee (soft)
+
+**DELETE** `/api/employees/{employee_id}`
+
+Soft-deletes by setting `status` to `terminated`.
+
+### Employee Stats
+
+**GET** `/api/employees/stats`
+
+Returns totals, department distribution, average tenure, new hires this month.
 
 ---
 

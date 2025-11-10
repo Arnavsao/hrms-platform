@@ -1,6 +1,6 @@
 from pydantic import BaseModel, EmailStr
 from typing import Optional
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 
@@ -46,8 +46,8 @@ class Employee(EmployeeBase):
     address: Optional[str] = None
     date_of_birth: Optional[date] = None
     emergency_contact: Optional[dict] = None
-    created_at: date
-    updated_at: date
+    created_at: datetime
+    updated_at: datetime
 
     class Config:
         from_attributes = True

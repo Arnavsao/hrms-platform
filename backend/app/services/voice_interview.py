@@ -7,10 +7,8 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 from uuid import uuid4
 
-import google.generativeai as legacy_genai
+import google.generativeai as genai
 from fastapi import WebSocket, WebSocketDisconnect
-from google import genai
-from google.genai import types
 from supabase import Client
 
 from app.core.config import settings
@@ -24,23 +22,37 @@ from app.services.ai_screening import (
 logger = get_logger(__name__)
 
 # Configure generative models (legacy SDK is still used for text evaluations)
-legacy_genai.configure(api_key=settings.GEMINI_API_KEY)
+genai.configure(api_key=settings.GEMINI_API_KEY)
 
-live_client = genai.Client(
-    http_options={"api_version": "v1beta"},
-    api_key=settings.GEMINI_API_KEY,
-)
-
-LIVE_CONNECT_CONFIG = types.LiveConnectConfig(
-    response_modalities=["AUDIO"],
-    speech_config=types.SpeechConfig(
-        voice_config=types.VoiceConfig(
-            prebuilt_voice_config=types.PrebuiltVoiceConfig(
-                voice_name=settings.GEMINI_LIVE_VOICE
-            )
+# Try to create live client (may not be available in all versions)
+try:
+    live_client = genai.Client(
+        http_options={"api_version": "v1beta"},
+        api_key=settings.GEMINI_API_KEY,
+    )
+    
+    # Try to import types - may not be available in all SDK versions
+    try:
+        from google.generativeai import types
+        
+        LIVE_CONNECT_CONFIG = types.LiveConnectConfig(
+            response_modalities=["AUDIO"],
+            speech_config=types.SpeechConfig(
+                voice_config=types.VoiceConfig(
+                    prebuilt_voice_config=types.PrebuiltVoiceConfig(
+                        voice_name=getattr(settings, 'GEMINI_LIVE_VOICE', 'Aoede')
+                    )
+                )
+            ),
         )
-    ),
-)
+    except (ImportError, AttributeError):
+        # Fallback if types not available
+        LIVE_CONNECT_CONFIG = None
+        logger.warning("Voice interview types not available - voice interviews may not work")
+except (AttributeError, TypeError):
+    live_client = None
+    LIVE_CONNECT_CONFIG = None
+    logger.warning("Voice interview client not available - voice interviews may not work")
 
 
 class VoiceInterviewError(Exception):

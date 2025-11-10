@@ -34,9 +34,15 @@ async def create_employee(
                 detail="Employee with this employee_id or email already exists"
             )
 
-        # Convert Decimal to float for JSON serialization
+        # Convert fields to JSON-serializable types
         employee_dict = employee_data.dict()
+        # base_salary may be Decimal -> convert to float
         employee_dict['base_salary'] = float(employee_dict['base_salary'])
+        # Dates -> ISO strings
+        if employee_dict.get('joined_date') is not None:
+            employee_dict['joined_date'] = employee_dict['joined_date'].isoformat()
+        if employee_dict.get('date_of_birth') is not None:
+            employee_dict['date_of_birth'] = employee_dict['date_of_birth'].isoformat()
 
         # Insert employee
         response = supabase.table("employees").insert(employee_dict).execute()
