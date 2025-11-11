@@ -105,7 +105,7 @@ export default function EmployeePerformancePage() {
 
     try {
       setIsSubmitting(true);
-      await api.submitSelfReview(selectedReview.id, selfReview);
+      await api.submitSelfReview(String(selectedReview.id), selfReview);
       alert('Self-review submitted successfully!');
       setIsDialogOpen(false);
       fetchEmployeeData();

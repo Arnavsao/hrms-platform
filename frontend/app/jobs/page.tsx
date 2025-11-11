@@ -56,7 +56,7 @@ export default function JobsPage() {
             const candidateResponse = await api.getCandidateByEmail(session.user.email);
             if (candidateResponse?.id) {
               const applications = await api.listApplications(null, candidateResponse.id);
-              const appliedIds = new Set(applications.map((app: any) => app.job_id));
+              const appliedIds = new Set<string>(applications.map((app: any) => String(app.job_id)));
               setAppliedJobIds(appliedIds);
             }
           } catch (err) {
@@ -205,18 +205,13 @@ export default function JobsPage() {
       onClick: (row: Job) => router.push(`/jobs/${row.id}`),
     },
     {
-      label: (row: Job) => {
-        if (row.status === 'closed') return 'Closed';
-        if (appliedJobIds.has(row.id)) return 'Applied';
-        return 'Apply';
-      },
+      label: 'Apply',
       icon: <PlusCircle className="h-4 w-4" />,
       onClick: (row: Job) => {
         if (!appliedJobIds.has(row.id) && row.status !== 'closed') {
           router.push(`/jobs/${row.id}/apply`);
         }
       },
-      disabled: (row: Job) => appliedJobIds.has(row.id) || row.status === 'closed',
     },
   ];
 

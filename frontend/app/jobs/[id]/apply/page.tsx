@@ -48,17 +48,19 @@ export default function JobApplicationPage({
   // Check if candidate already applied
   useEffect(() => {
     async function checkAlreadyApplied() {
+      if (!email || !params.id) return;
       try {
-        const candidate = email ? await api.getCandidateByEmail(email) : null;
-        const resolvedId = candidate?.id || null;
-        setCandidateId(resolvedId);
-        if (!resolvedId) {
+        const candidate = await api.getCandidateByEmail(email);
+        if (candidate?.id) {
+          setCandidateId(candidate.id);
+          const apps = await api.listApplications(params.id, candidate.id);
+          setAlreadyApplied(Array.isArray(apps) && apps.length > 0);
+        } else {
+          setCandidateId(null);
           setAlreadyApplied(false);
-          return;
         }
-        const apps = await api.listApplications(params.id, resolvedId);
-        setAlreadyApplied((apps || []).length > 0);
       } catch (_) {
+        // ignore: candidate may not exist yet
         setAlreadyApplied(false);
       }
     }
@@ -138,23 +140,6 @@ export default function JobApplicationPage({
       setMatching(false);
     }
   };
-
-  // Check if the user has already applied (by email → candidate → applications)
-  useEffect(() => {
-    async function checkAlreadyApplied() {
-      if (!email || !params.id) return;
-      try {
-        const candidate = await api.getCandidateByEmail(email);
-        if (candidate?.id) {
-          const apps = await api.listApplications(params.id, candidate.id);
-          setAlreadyApplied(Array.isArray(apps) && apps.length > 0);
-        }
-      } catch (_) {
-        // ignore: candidate may not exist yet
-      }
-    }
-    checkAlreadyApplied();
-  }, [email, params.id]);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

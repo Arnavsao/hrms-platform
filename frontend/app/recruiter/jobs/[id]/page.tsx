@@ -125,7 +125,7 @@ export default function RecruiterJobDetailPage({
                 Access Denied
               </h3>
               <p className="text-gray-500 mb-4">
-                You don't have permission to view this page.
+                You don&apos;t have permission to view this page.
               </p>
               <Button onClick={() => router.push('/')}>
                 Go to Dashboard
@@ -160,7 +160,7 @@ export default function RecruiterJobDetailPage({
                 Job Not Found
               </h3>
               <p className="text-gray-500 mb-4">
-                The job you're looking for doesn't exist.
+                The job you&apos;re looking for doesn&apos;t exist.
               </p>
               <Button onClick={() => router.push('/jobs')}>
                 Back to Jobs

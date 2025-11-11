@@ -6,7 +6,6 @@ import { api } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar } from '@/components/ui/calendar';
 import {
   Clock,
   Calendar as CalendarIcon,
@@ -259,7 +258,7 @@ export default function EmployeeAttendancePage() {
       {/* Quick Actions */}
       <Card>
         <CardHeader>
-          <CardTitle>Today's Attendance</CardTitle>
+          <CardTitle>Today&apos;s Attendance</CardTitle>
           <CardDescription>
             {new Date().toLocaleDateString('en-US', {
               weekday: 'long',

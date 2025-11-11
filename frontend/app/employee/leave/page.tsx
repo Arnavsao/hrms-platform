@@ -448,7 +448,7 @@ Please verify:
         <CardContent>
           {leaveRequests.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">
-              No leave requests found. Click "Request Leave" to submit your first request.
+              No leave requests found. Click &quot;Request Leave&quot; to submit your first request.
             </p>
           ) : (
             <div className="space-y-3">

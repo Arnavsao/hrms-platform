@@ -296,7 +296,7 @@ export default function CandidateDetailPage({ params }: CandidateDetailPageProps
           {/* Digital Footprint */}
           {candidate.digital_footprints && candidate.digital_footprints.length > 0 && (
             <DigitalFootprintCard
-              digitalFootprint={candidate.digital_footprints[0]}
+              digital_footprint={candidate.digital_footprints[0]}
             />
           )}
 
