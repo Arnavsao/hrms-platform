@@ -4,6 +4,7 @@ import { supabase } from './supabaseClient';
 export enum UserRole {
   ADMIN = 'admin',
   RECRUITER = 'recruiter',
+  EMPLOYEE = 'employee',
   CANDIDATE = 'candidate',
 }
 

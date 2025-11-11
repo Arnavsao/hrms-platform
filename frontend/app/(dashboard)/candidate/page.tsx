@@ -9,7 +9,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import {
-  Upload,
   Briefcase,
   FileText,
   TrendingUp,
@@ -19,7 +18,8 @@ import {
   XCircle,
   AlertCircle,
   ExternalLink,
-  Eye
+  Eye,
+  Mic
 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 
@@ -128,11 +128,11 @@ export default function CandidateDashboard() {
 
   const quickActions = [
     {
-      title: 'Upload Resume',
-      description: 'Update your profile with latest resume',
-      icon: <Upload className="h-6 w-6" />,
-      onClick: () => router.push('/candidates/upload'),
-      color: 'bg-blue-500 hover:bg-blue-600',
+      title: 'My Profile',
+      description: 'View and edit your profile information',
+      icon: <FileText className="h-6 w-6" />,
+      onClick: () => router.push('/candidate/profile'),
+      color: 'bg-indigo-500 hover:bg-indigo-600',
     },
     {
       title: 'Browse Jobs',
@@ -140,16 +140,6 @@ export default function CandidateDashboard() {
       icon: <Briefcase className="h-6 w-6" />,
       onClick: () => router.push('/jobs'),
       color: 'bg-green-500 hover:bg-green-600',
-    },
-    {
-      title: 'My Applications',
-      description: 'Track your application status',
-      icon: <FileText className="h-6 w-6" />,
-      onClick: () => {
-        // Scroll to applications section
-        document.getElementById('applications-section')?.scrollIntoView({ behavior: 'smooth' });
-      },
-      color: 'bg-purple-500 hover:bg-purple-600',
     },
   ];
 
@@ -253,7 +243,7 @@ export default function CandidateDashboard() {
           {/* Quick Actions */}
           <div className="bg-white rounded-lg shadow-sm p-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-6">Quick Actions</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               {quickActions.map((action, index) => (
                 <Card key={index} className="cursor-pointer hover:shadow-lg transition-shadow">
                   <CardContent className="p-6">
@@ -312,7 +302,7 @@ export default function CandidateDashboard() {
                           <div className="flex items-start justify-between mb-3">
                             <div>
                               <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                                {application.job_title || 'Job Position'}
+                                {application.job_title}
                               </h3>
                               <div className="flex items-center space-x-3">
                                 <Badge variant={getStatusBadgeVariant(application.status)} className="flex items-center space-x-1">
@@ -376,13 +366,22 @@ export default function CandidateDashboard() {
                         </div>
 
                         <div className="mt-4 lg:mt-0 lg:ml-6">
-                          <Button
-                            variant="outline"
-                            onClick={() => router.push(`/recruiter/applications/${application.id}`)}
-                          >
-                            <Eye className="mr-2 h-4 w-4" />
-                            View Details
-                          </Button>
+                          <div className="flex flex-col gap-2">
+                            <Button
+                              variant="outline"
+                              onClick={() => router.push(`/jobs/${application.job_id}`)}
+                            >
+                              <Eye className="mr-2 h-4 w-4" />
+                              View Job
+                            </Button>
+                            <Button
+                              variant="secondary"
+                              onClick={() => router.push(`/candidate/interviews/${application.id}`)}
+                            >
+                              <Mic className="mr-2 h-4 w-4" />
+                              Voice Interview
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </CardContent>
@@ -429,7 +428,7 @@ export default function CandidateDashboard() {
                   </div>
                 </div>
 
-                <Button variant="outline" className="w-full mt-4" onClick={() => router.push('/candidates/upload')}>
+                <Button variant="outline" className="w-full mt-4" onClick={() => router.push('/candidate/profile')}>
                   Complete Profile
                 </Button>
               </div>

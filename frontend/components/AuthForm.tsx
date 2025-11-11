@@ -25,10 +25,18 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Invalid email address.' }),
   password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
+  role: z.enum(['admin', 'recruiter', 'employee', 'candidate']).optional(),
 });
 
 type AuthFormProps = {
@@ -45,6 +53,7 @@ export function AuthForm({ isLogin }: AuthFormProps) {
     defaultValues: {
       email: '',
       password: '',
+      role: 'candidate',
     },
   });
 
@@ -55,7 +64,8 @@ export function AuthForm({ isLogin }: AuthFormProps) {
       if (isLogin) {
         await auth.signIn(values.email, values.password);
       } else {
-        await auth.signUp(values.email, values.password, UserRole.CANDIDATE);
+        const role = values.role || 'candidate';
+        await auth.signUp(values.email, values.password, role as UserRole);
       }
       router.refresh(); // This will re-run the middleware which will handle all redirects.
     } catch (err: any) {
@@ -102,6 +112,31 @@ export function AuthForm({ isLogin }: AuthFormProps) {
                 </FormItem>
               )}
             />
+            {!isLogin && (
+              <FormField
+                control={form.control}
+                name="role"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Role</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select your role" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="candidate">Candidate</SelectItem>
+                        <SelectItem value="employee">Employee</SelectItem>
+                        <SelectItem value="recruiter">Recruiter</SelectItem>
+                        <SelectItem value="admin">Admin</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
             {error && <p className="text-sm font-medium text-destructive">{error}</p>}
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? 'Processing...' : isLogin ? 'Login' : 'Sign Up'}
