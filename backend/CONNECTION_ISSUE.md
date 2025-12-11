@@ -36,7 +36,7 @@ As a temporary workaround, you can run migrations directly in Supabase:
 
 Your current connection string:
 ```
-postgresql://postgres:%40rn%40vS%40o1924@db.dwzxawcllpolpezulpun.supabase.co:5432/postgres
+postgresql://postgres:[YOUR-PASSWORD]@db.dwzxawcllpolpezulpun.supabase.co:5432/postgres
 ```
 
 This should work, but the DNS resolution is failing. Please check your Supabase dashboard for the correct connection string format.

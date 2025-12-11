@@ -5,6 +5,7 @@ export enum UserRole {
   ADMIN = 'admin',
   RECRUITER = 'recruiter',
   CANDIDATE = 'candidate',
+  EMPLOYEE = 'employee',
 }
 
 // Type for user session with role information

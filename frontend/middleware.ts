@@ -64,6 +64,9 @@ export async function middleware(request: NextRequest) {
     if (userRole === UserRole.RECRUITER) {
         return NextResponse.redirect(new URL('/recruiter', request.url));
     }
+    if (userRole === UserRole.EMPLOYEE) {
+        return NextResponse.redirect(new URL('/candidate', request.url));
+    }
     // Default for candidates
     return NextResponse.redirect(new URL('/candidates/upload', request.url));
   }

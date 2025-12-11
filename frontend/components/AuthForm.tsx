@@ -25,10 +25,23 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
-const formSchema = z.object({
+const loginFormSchema = z.object({
   email: z.string().email({ message: 'Invalid email address.' }),
   password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
+});
+
+const signupFormSchema = z.object({
+  email: z.string().email({ message: 'Invalid email address.' }),
+  password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
+  role: z.nativeEnum(UserRole, { required_error: 'Please select a user type.' }),
 });
 
 type AuthFormProps = {
@@ -37,27 +50,42 @@ type AuthFormProps = {
 
 export function AuthForm({ isLogin }: AuthFormProps) {
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const formSchema = isLogin ? loginFormSchema : signupFormSchema;
+  type FormValues = z.infer<typeof formSchema>;
+
+  const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       email: '',
       password: '',
-    },
+      ...((!isLogin) && { role: undefined }),
+    } as FormValues,
   });
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: FormValues) {
     setIsLoading(true);
     setError(null);
+    setSuccessMessage(null);
     try {
       if (isLogin) {
         await auth.signIn(values.email, values.password);
+        router.refresh(); // This will re-run the middleware which will handle all redirects.
       } else {
-        await auth.signUp(values.email, values.password, UserRole.CANDIDATE);
+        const signupValues = values as z.infer<typeof signupFormSchema>;
+        const result = await auth.signUp(signupValues.email, signupValues.password, signupValues.role);
+
+        // Check if email confirmation is required
+        if (result.user && !result.session) {
+          setSuccessMessage('Account created! Please check your email to confirm your account before logging in.');
+        } else if (result.session) {
+          // User is automatically logged in (email confirmation disabled)
+          router.refresh();
+        }
       }
-      router.refresh(); // This will re-run the middleware which will handle all redirects.
     } catch (err: any) {
       setError(err.message || 'An unexpected error occurred.');
     } finally {
@@ -102,7 +130,33 @@ export function AuthForm({ isLogin }: AuthFormProps) {
                 </FormItem>
               )}
             />
+            {!isLogin && (
+              <FormField
+                control={form.control}
+                name="role"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>User Type</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select your role" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value={UserRole.CANDIDATE}>Candidate</SelectItem>
+                        <SelectItem value={UserRole.RECRUITER}>Recruiter</SelectItem>
+                        <SelectItem value={UserRole.EMPLOYEE}>Employee</SelectItem>
+                        <SelectItem value={UserRole.ADMIN}>Admin</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
             {error && <p className="text-sm font-medium text-destructive">{error}</p>}
+            {successMessage && <p className="text-sm font-medium text-green-600">{successMessage}</p>}
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? 'Processing...' : isLogin ? 'Login' : 'Sign Up'}
             </Button>

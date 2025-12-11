@@ -16,7 +16,14 @@ PROJECT_REF="dwzxawcllpolpezulpun"  # From your SUPABASE_URL
 
 # URL-encode the password to handle special characters like @, #, etc.
 # Using Python's urllib.parse.quote for proper encoding
-ENCODED_PASSWORD=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$DB_PASSWORD', safe=''))")
+# Pass password via stdin to avoid shell injection and quote issues
+ENCODED_PASSWORD=$(python3 <<EOF
+import urllib.parse
+import sys
+password = sys.stdin.read().strip()
+print(urllib.parse.quote(password, safe=''))
+EOF
+<<<"$DB_PASSWORD")
 DATABASE_URL="postgresql://postgres:${ENCODED_PASSWORD}@db.${PROJECT_REF}.supabase.co:5432/postgres"
 
 # Update .env file

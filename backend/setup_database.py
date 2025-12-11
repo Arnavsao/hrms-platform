@@ -7,6 +7,7 @@ import os
 import sys
 from pathlib import Path
 import getpass
+import urllib.parse
 
 def get_supabase_credentials():
     """
@@ -43,8 +44,9 @@ def get_supabase_credentials():
         print("ERROR: Database password is required")
         sys.exit(1)
     
-    # Construct DATABASE_URL
-    database_url = f"postgresql://postgres:{db_password}@db.{project_ref}.supabase.co:5432/postgres"
+    # Construct DATABASE_URL with URL-encoded password to handle special characters
+    encoded_password = urllib.parse.quote(db_password, safe='')
+    database_url = f"postgresql://postgres:{encoded_password}@db.{project_ref}.supabase.co:5432/postgres"
     
     # Get Supabase Key (service role key for backend)
     supabase_key = os.getenv('SUPABASE_KEY', '').strip()
