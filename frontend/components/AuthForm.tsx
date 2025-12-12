@@ -33,7 +33,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
-const formSchema = z.object({
+const signupFormSchema = z.object({
   email: z.string().email({ message: 'Invalid email address.' }),
   password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
   role: z.enum(['admin', 'recruiter', 'employee', 'candidate']).optional(),
@@ -45,11 +45,12 @@ type AuthFormProps = {
 
 export function AuthForm({ isLogin }: AuthFormProps) {
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
+  const form = useForm<z.infer<typeof signupFormSchema>>({
+    resolver: zodResolver(isLogin ? loginFormSchema : signupFormSchema) as any,
     defaultValues: {
       email: '',
       password: '',
@@ -57,17 +58,18 @@ export function AuthForm({ isLogin }: AuthFormProps) {
     },
   });
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: z.infer<typeof signupFormSchema>) {
     setIsLoading(true);
     setError(null);
+    setSuccessMessage(null);
     try {
       if (isLogin) {
         await auth.signIn(values.email, values.password);
+        router.refresh(); // This will re-run the middleware which will handle all redirects.
       } else {
         const role = values.role || 'candidate';
         await auth.signUp(values.email, values.password, role as UserRole);
       }
-      router.refresh(); // This will re-run the middleware which will handle all redirects.
     } catch (err: any) {
       setError(err.message || 'An unexpected error occurred.');
     } finally {
@@ -138,6 +140,7 @@ export function AuthForm({ isLogin }: AuthFormProps) {
               />
             )}
             {error && <p className="text-sm font-medium text-destructive">{error}</p>}
+            {successMessage && <p className="text-sm font-medium text-green-600">{successMessage}</p>}
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? 'Processing...' : isLogin ? 'Login' : 'Sign Up'}
             </Button>
