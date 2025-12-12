@@ -10,22 +10,31 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ResponsiveTable } from '@/components/ui/responsive-table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { 
-  PlusCircle, 
-  Search, 
-  Filter, 
-  MapPin, 
-  Clock, 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  PlusCircle,
+  Search,
+  Filter,
+  MapPin,
+  Clock,
   Building2,
   Edit,
   Trash2,
-  Eye
+  Eye,
+  RefreshCw
 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 
 export default function JobsPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [filteredJobs, setFilteredJobs] = useState<Job[]>([]);
+  const [appliedJobIds, setAppliedJobIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const { session } = useAuth();
@@ -35,19 +44,33 @@ export default function JobsPage() {
   const isRecruiter = userRole === 'recruiter' || userRole === 'admin';
 
   useEffect(() => {
-    async function fetchJobs() {
+    async function fetchData() {
       try {
         const data = await api.listJobs();
         setJobs(data);
         setFilteredJobs(data);
+
+        // If candidate, fetch their applications to mark applied jobs
+        if (!isRecruiter && session?.user?.email) {
+          try {
+            const candidateResponse = await api.getCandidateByEmail(session.user.email);
+            if (candidateResponse?.id) {
+              const applications = await api.listApplications(null, candidateResponse.id);
+              const appliedIds = new Set<string>(applications.map((app: any) => String(app.job_id)));
+              setAppliedJobIds(appliedIds);
+            }
+          } catch (err) {
+            console.error("Failed to fetch candidate applications", err);
+          }
+        }
       } catch (error) {
         console.error("Failed to fetch jobs", error);
       } finally {
         setIsLoading(false);
       }
     }
-    fetchJobs();
-  }, []);
+    fetchData();
+  }, [session, isRecruiter]);
 
   useEffect(() => {
     const filtered = jobs.filter(job =>
@@ -66,6 +89,22 @@ export default function JobsPage() {
       } catch (error) {
         console.error("Failed to delete job", error);
       }
+    }
+  };
+
+  const handleStatusChange = async (jobId: string, newStatus: string) => {
+    try {
+      await api.updateJobStatus(jobId, newStatus);
+      // Update the job status in both state arrays
+      const updateStatus = (jobsList: Job[]) =>
+        jobsList.map(job =>
+          job.id === jobId ? { ...job, status: newStatus } : job
+        );
+      setJobs(updateStatus(jobs));
+      setFilteredJobs(updateStatus(filteredJobs));
+    } catch (error) {
+      console.error("Failed to update job status", error);
+      alert("Failed to update job status. Please try again.");
     }
   };
 
@@ -103,7 +142,31 @@ export default function JobsPage() {
       key: 'status',
       label: 'Status',
       sortable: true,
-      render: (value: string) => getStatusBadge(value || 'active'),
+      render: (value: string, row: Job) => (
+        isRecruiter ? (
+          <Select
+            value={value || 'active'}
+            onValueChange={(newStatus) => handleStatusChange(row.id, newStatus)}
+          >
+            <SelectTrigger className="w-[120px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="active">
+                <Badge variant="default">Active</Badge>
+              </SelectItem>
+              <SelectItem value="paused">
+                <Badge variant="secondary">Paused</Badge>
+              </SelectItem>
+              <SelectItem value="closed">
+                <Badge variant="destructive">Closed</Badge>
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        ) : (
+          getStatusBadge(value || 'active')
+        )
+      ),
     },
     {
       key: 'created_at',
@@ -122,7 +185,7 @@ export default function JobsPage() {
     {
       label: 'View Details',
       icon: <Eye className="h-4 w-4" />,
-      onClick: (row: Job) => router.push(`/jobs/${row.id}`),
+      onClick: (row: Job) => router.push(`/recruiter/jobs/${row.id}`),
     },
     {
       label: 'Edit Job',
@@ -144,7 +207,11 @@ export default function JobsPage() {
     {
       label: 'Apply',
       icon: <PlusCircle className="h-4 w-4" />,
-      onClick: (row: Job) => router.push(`/jobs/${row.id}/apply`),
+      onClick: (row: Job) => {
+        if (!appliedJobIds.has(row.id) && row.status !== 'closed') {
+          router.push(`/jobs/${row.id}/apply`);
+        }
+      },
     },
   ];
 

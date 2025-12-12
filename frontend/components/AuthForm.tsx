@@ -33,15 +33,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
-const loginFormSchema = z.object({
-  email: z.string().email({ message: 'Invalid email address.' }),
-  password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
-});
-
 const signupFormSchema = z.object({
   email: z.string().email({ message: 'Invalid email address.' }),
   password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
-  role: z.nativeEnum(UserRole, { required_error: 'Please select a user type.' }),
+  role: z.enum(['admin', 'recruiter', 'employee', 'candidate']).optional(),
 });
 
 type AuthFormProps = {
@@ -59,7 +54,7 @@ export function AuthForm({ isLogin }: AuthFormProps) {
     defaultValues: {
       email: '',
       password: '',
-      role: undefined,
+      role: 'candidate',
     },
   });
 
@@ -72,15 +67,8 @@ export function AuthForm({ isLogin }: AuthFormProps) {
         await auth.signIn(values.email, values.password);
         router.refresh(); // This will re-run the middleware which will handle all redirects.
       } else {
-        const result = await auth.signUp(values.email, values.password, values.role!);
-
-        // Check if email confirmation is required
-        if (result.user && !result.session) {
-          setSuccessMessage('Account created! Please check your email to confirm your account before logging in.');
-        } else if (result.session) {
-          // User is automatically logged in (email confirmation disabled)
-          router.refresh();
-        }
+        const role = values.role || 'candidate';
+        await auth.signUp(values.email, values.password, role as UserRole);
       }
     } catch (err: any) {
       setError(err.message || 'An unexpected error occurred.');
@@ -132,7 +120,7 @@ export function AuthForm({ isLogin }: AuthFormProps) {
                 name="role"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>User Type</FormLabel>
+                    <FormLabel>Role</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
@@ -140,10 +128,10 @@ export function AuthForm({ isLogin }: AuthFormProps) {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value={UserRole.CANDIDATE}>Candidate</SelectItem>
-                        <SelectItem value={UserRole.RECRUITER}>Recruiter</SelectItem>
-                        <SelectItem value={UserRole.EMPLOYEE}>Employee</SelectItem>
-                        <SelectItem value={UserRole.ADMIN}>Admin</SelectItem>
+                        <SelectItem value="candidate">Candidate</SelectItem>
+                        <SelectItem value="employee">Employee</SelectItem>
+                        <SelectItem value="recruiter">Recruiter</SelectItem>
+                        <SelectItem value="admin">Admin</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />

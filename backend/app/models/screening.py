@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from datetime import datetime
 
 class ScreeningBase(BaseModel):
@@ -36,4 +36,5 @@ class ScreeningResponse(BaseModel):
     screening_id: str
     transcript: str
     evaluation: ScreeningEvaluation
+    timeline: List[Dict[str, Any]] = []
 

@@ -26,7 +26,6 @@ import {
   LogOut,
   User,
   BarChart3,
-  Upload,
   Search,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -46,9 +45,9 @@ export function Navigation({ className }: NavigationProps) {
   const navigationItems = [
     {
       name: 'Dashboard',
-      href: userRole === 'admin' ? '/admin' : userRole === 'recruiter' ? '/recruiter' : '/candidate',
+      href: userRole === 'admin' ? '/admin' : userRole === 'recruiter' ? '/recruiter' : userRole === 'employee' ? '/employee' : '/candidate',
       icon: Home,
-      current: pathname === '/admin' || pathname === '/recruiter' || pathname === '/candidate',
+      current: pathname === '/admin' || pathname === '/recruiter' || pathname === '/employee' || pathname === '/candidate',
     },
     ...(userRole === 'recruiter' || userRole === 'admin' ? [
       {
@@ -58,7 +57,7 @@ export function Navigation({ className }: NavigationProps) {
         current: pathname.startsWith('/jobs'),
       },
       {
-        name: 'Candidates',
+        name: 'View Candidates',
         href: '/candidates',
         icon: Users,
         current: pathname.startsWith('/candidates'),
@@ -69,6 +68,12 @@ export function Navigation({ className }: NavigationProps) {
         icon: FileText,
         current: pathname.startsWith('/recruiter/applications'),
       },
+      {
+        name: 'Employees',
+        href: '/hr/employees',
+        icon: Users,
+        current: pathname.startsWith('/hr/employees'),
+      },
     ] : []),
     ...(userRole === 'admin' ? [
       {
@@ -78,12 +83,44 @@ export function Navigation({ className }: NavigationProps) {
         current: pathname.startsWith('/admin/analytics'),
       },
     ] : []),
+    ...(userRole === 'employee' ? [
+      {
+        name: 'My Profile',
+        href: '/employee/profile',
+        icon: User,
+        current: pathname.startsWith('/employee/profile'),
+      },
+      {
+        name: 'Attendance',
+        href: '/employee/attendance',
+        icon: FileText,
+        current: pathname.startsWith('/employee/attendance'),
+      },
+      {
+        name: 'Payroll',
+        href: '/employee/payroll',
+        icon: Briefcase,
+        current: pathname.startsWith('/employee/payroll'),
+      },
+      {
+        name: 'Leave',
+        href: '/employee/leave',
+        icon: FileText,
+        current: pathname.startsWith('/employee/leave'),
+      },
+      {
+        name: 'Performance',
+        href: '/employee/performance',
+        icon: BarChart3,
+        current: pathname.startsWith('/employee/performance'),
+      },
+    ] : []),
     ...(userRole === 'candidate' ? [
       {
-        name: 'Upload Resume',
-        href: '/candidates/upload',
-        icon: Upload,
-        current: pathname.startsWith('/candidates/upload'),
+        name: 'My Profile',
+        href: '/candidate/profile',
+        icon: User,
+        current: pathname.startsWith('/candidate/profile'),
       },
       {
         name: 'Browse Jobs',
@@ -108,6 +145,8 @@ export function Navigation({ className }: NavigationProps) {
       case 'admin':
         return 'destructive';
       case 'recruiter':
+        return 'default';
+      case 'employee':
         return 'default';
       case 'candidate':
         return 'secondary';
