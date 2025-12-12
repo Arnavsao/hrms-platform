@@ -54,19 +54,16 @@ export function AuthForm({ isLogin }: AuthFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
-  const formSchema = isLogin ? loginFormSchema : signupFormSchema;
-  type FormValues = z.infer<typeof formSchema>;
-
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
+  const form = useForm<z.infer<typeof signupFormSchema>>({
+    resolver: zodResolver(isLogin ? loginFormSchema : signupFormSchema) as any,
     defaultValues: {
       email: '',
       password: '',
-      ...((!isLogin) && { role: undefined }),
-    } as FormValues,
+      role: undefined,
+    },
   });
 
-  async function onSubmit(values: FormValues) {
+  async function onSubmit(values: z.infer<typeof signupFormSchema>) {
     setIsLoading(true);
     setError(null);
     setSuccessMessage(null);
@@ -75,8 +72,7 @@ export function AuthForm({ isLogin }: AuthFormProps) {
         await auth.signIn(values.email, values.password);
         router.refresh(); // This will re-run the middleware which will handle all redirects.
       } else {
-        const signupValues = values as z.infer<typeof signupFormSchema>;
-        const result = await auth.signUp(signupValues.email, signupValues.password, signupValues.role);
+        const result = await auth.signUp(values.email, values.password, values.role!);
 
         // Check if email confirmation is required
         if (result.user && !result.session) {
