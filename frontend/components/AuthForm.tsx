@@ -36,6 +36,7 @@ import {
 const loginFormSchema = z.object({
   email: z.string().email({ message: 'Invalid email address.' }),
   password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
+  role: z.enum(['admin', 'recruiter', 'employee', 'candidate']).optional(),
 });
 
 const signupFormSchema = z.object({
@@ -59,7 +60,7 @@ export function AuthForm({ isLogin }: AuthFormProps) {
     defaultValues: {
       email: '',
       password: '',
-      role: undefined,
+      role: UserRole.CANDIDATE,
     },
   });
 
@@ -72,7 +73,8 @@ export function AuthForm({ isLogin }: AuthFormProps) {
         await auth.signIn(values.email, values.password);
         router.refresh(); // This will re-run the middleware which will handle all redirects.
       } else {
-        const result = await auth.signUp(values.email, values.password, values.role!);
+        const role = values.role || UserRole.CANDIDATE;
+        const result = await auth.signUp(values.email, values.password, role);
 
         // Check if email confirmation is required
         if (result.user && !result.session) {
@@ -141,8 +143,8 @@ export function AuthForm({ isLogin }: AuthFormProps) {
                       </FormControl>
                       <SelectContent>
                         <SelectItem value={UserRole.CANDIDATE}>Candidate</SelectItem>
-                        <SelectItem value={UserRole.RECRUITER}>Recruiter</SelectItem>
                         <SelectItem value={UserRole.EMPLOYEE}>Employee</SelectItem>
+                        <SelectItem value={UserRole.RECRUITER}>Recruiter</SelectItem>
                         <SelectItem value={UserRole.ADMIN}>Admin</SelectItem>
                       </SelectContent>
                     </Select>

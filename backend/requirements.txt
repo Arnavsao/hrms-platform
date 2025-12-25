@@ -6,6 +6,7 @@ python-multipart==0.0.9
 # AI and LLM
 openai==1.12.0
 google-generativeai==0.8.5
+google-genai==0.3.1
 
 # Data processing
 pydantic==2.9.2
@@ -40,4 +41,3 @@ psycopg2-binary==2.9.9
 python-jose==3.3.0
 cryptography==41.0.7
 passlib[bcrypt]==1.7.4
-

@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.logging import setup_logging
-from app.api import candidates, jobs, applications, screenings
+from app.api import candidates, jobs, applications, screenings, digital_footprints, admin, employees, attendance, payroll, performance, leave, voice_interviews
 
 # Setup logging
 setup_logging()
@@ -17,11 +17,17 @@ app = FastAPI(
 )
 
 # Configure CORS to allow frontend to communicate with backend
-# Allows localhost and all *.vercel.app domains (production and preview)
+allowed_origins = settings.cors_origins_list
+
+# In local development it's helpful to allow the frontend origin explicitly
+if not allowed_origins:
+    allowed_origins = ["http://localhost:3000"]
+
+# Also allow all *.vercel.app domains (production and preview)
 app.add_middleware(
     CORSMiddleware,
     allow_origin_regex=r"https://.*\.vercel\.app$",
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -32,6 +38,14 @@ app.include_router(candidates.router, prefix="/api/candidates", tags=["Candidate
 app.include_router(jobs.router, prefix="/api/jobs", tags=["Jobs"])
 app.include_router(applications.router, prefix="/api/applications", tags=["Applications"])
 app.include_router(screenings.router, prefix="/api/screenings", tags=["Screenings"])
+app.include_router(digital_footprints.router, prefix="/api/footprints", tags=["Digital Footprints"])
+app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])
+app.include_router(employees.router, prefix="/api/employees", tags=["Employees"])
+app.include_router(attendance.router, prefix="/api/attendance", tags=["Attendance"])
+app.include_router(payroll.router, prefix="/api/payroll", tags=["Payroll"])
+app.include_router(performance.router, prefix="/api/performance", tags=["Performance"])
+app.include_router(leave.router, prefix="/api/leave", tags=["Leave Management"])
+app.include_router(voice_interviews.router, prefix="/api/voice-interviews", tags=["Voice Interviews"])
 
 @app.get("/")
 async def root():
@@ -58,4 +72,3 @@ if __name__ == "__main__":
         port=settings.API_PORT,
         reload=settings.API_RELOAD,
     )
-

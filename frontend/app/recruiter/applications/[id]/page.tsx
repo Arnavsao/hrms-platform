@@ -7,6 +7,7 @@ import { AiAnalysisCard } from '@/components/recruiter/details/AiAnalysisCard';
 import { CandidateProfileCard } from '@/components/recruiter/details/CandidateProfileCard';
 import { DigitalFootprintCard } from '@/components/recruiter/details/DigitalFootprintCard';
 import { ScreeningDialog } from '@/components/recruiter/details/ScreeningDialog';
+import { VoiceInterviewHistory } from '@/components/recruiter/details/VoiceInterviewHistory';
 
 // Temporary interfaces - will be replaced with models
 interface ApplicationDetails {
@@ -75,6 +76,7 @@ export default function ApplicationDetailPage({ params }: { params: { id: string
                                 fit_score={application.fit_score}
                                 highlights={application.highlights}
                             />
+                            <VoiceInterviewHistory applicationId={application.id} />
                         </div>
                     </div>
                 </div>

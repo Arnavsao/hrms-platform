@@ -56,7 +56,29 @@ async def match_candidate_to_job(candidate_id: str, job_id: str) -> Dict:
             system_message="You are an expert HR recruiter specializing in candidate-job matching. Provide accurate, detailed analysis."
         )
         
-        # TODO: Store application with fit score in database
+        # Store application with fit score in database
+        application_data = {
+            "candidate_id": candidate_id,
+            "job_id": job_id,
+            "fit_score": analysis["fit_score"],
+            "highlights": analysis
+        }
+        
+        # Check if application already exists
+        existing_app = supabase.table("applications").select("id").eq(
+            "candidate_id", candidate_id
+        ).eq("job_id", job_id).execute()
+        
+        if existing_app.data:
+            # Update existing application
+            supabase.table("applications").update(application_data).eq(
+                "id", existing_app.data[0]['id']
+            ).execute()
+            logger.info(f"Updated application for candidate {candidate_id} to job {job_id}")
+        else:
+            # Create new application
+            supabase.table("applications").insert(application_data).execute()
+            logger.info(f"Created new application for candidate {candidate_id} to job {job_id}")
         
         logger.info(f"Matched candidate {candidate_id} to job {job_id} with score {analysis['fit_score']}")
         

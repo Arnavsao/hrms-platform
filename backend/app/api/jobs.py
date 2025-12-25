@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from supabase import Client
 from typing import List
+from pydantic import BaseModel
 
 from app.models.job import Job, JobCreate, JobUpdate
 from app.core.logging import get_logger
@@ -8,6 +9,10 @@ from app.core.supabase_client import get_supabase_client
 
 logger = get_logger(__name__)
 router = APIRouter()
+
+class JobStatusUpdate(BaseModel):
+    """Request to update job status"""
+    status: str
 
 @router.post("/", response_model=Job)
 async def create_job(
@@ -85,3 +90,29 @@ async def delete_job(
         logger.error(f"Error deleting job {job_id}: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to delete job.")
 
+
+@router.patch("/{job_id}/status")
+async def update_job_status(
+    job_id: str,
+    payload: JobStatusUpdate,
+    supabase: Client = Depends(get_supabase_client)
+):
+    """Update job status (active, paused, closed)"""
+    try:
+        logger.info(f"Updating status for job {job_id} to {payload.status}")
+
+        # Validate status
+        valid_statuses = ["active", "paused", "closed"]
+        if payload.status not in valid_statuses:
+            raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of: {', '.join(valid_statuses)}")
+
+        response = supabase.table("jobs").update({"status": payload.status}).eq("id", job_id).execute()
+        if not response.data:
+            raise HTTPException(status_code=404, detail="Job not found")
+
+        return {"id": job_id, "status": payload.status}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating job status: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to update job status.")
