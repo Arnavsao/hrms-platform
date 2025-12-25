@@ -9,12 +9,9 @@ from app.services.link_scraper import scrape_links
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.core.supabase_client import get_supabase_client
-import google.generativeai as genai
+from app.core.ai_client import generate_json_response
 
 logger = get_logger(__name__)
-
-# Configure Gemini AI
-genai.configure(api_key=settings.GEMINI_API_KEY)
 
 async def extract_text_from_pdf(content: bytes) -> str:
     """Extract text from PDF file"""
@@ -42,14 +39,20 @@ async def extract_text_from_docx(content: bytes) -> str:
 
 async def parse_resume_with_ai(text: str) -> ParsedData:
     """
-    Use Gemini AI to parse resume text and extract structured data.
+    Use MegaLLM (GPT-5) to parse resume text and extract structured data.
     
     Extracts: name, email, phone, skills, education, experience, and links
+    
+    Args:
+        text: Raw text extracted from resume file
+    
+    Returns:
+        ParsedData: Structured candidate data extracted from resume
+    
+    Raises:
+        Exception: If parsing fails or response is invalid
     """
     try:
-        # Create AI model instance
-        model = genai.GenerativeModel('gemini-2.0-flash')
-        
         # Craft prompt for structured extraction
         prompt = f"""
         Parse the following resume and extract structured information in JSON format.
@@ -65,31 +68,21 @@ async def parse_resume_with_ai(text: str) -> ParsedData:
         
         Resume text:
         {text}
-        
-        Return ONLY valid JSON without any markdown formatting or additional text.
         """
         
-        # Generate response
-        response = model.generate_content(prompt)
-        result_text = response.text.strip()
-        
-        # Remove markdown code blocks if present
-        if result_text.startswith("```json"):
-            result_text = result_text[7:]
-        if result_text.startswith("```"):
-            result_text = result_text[3:]
-        if result_text.endswith("```"):
-            result_text = result_text[:-3]
-        result_text = result_text.strip()
-        
-        # Parse JSON response
-        import json
-        parsed_json = json.loads(result_text)
+        # Generate JSON response using MegaLLM
+        parsed_json = await generate_json_response(
+            prompt=prompt,
+            model=settings.AI_MODEL,
+            temperature=settings.AI_TEMPERATURE,
+            max_tokens=settings.AI_MAX_TOKENS,
+            system_message="You are an expert resume parser. Extract structured data accurately and return only valid JSON."
+        )
         
         # Create ParsedData object
         parsed_data = ParsedData(**parsed_json)
         
-        logger.info(f"Successfully parsed resume for {parsed_data.name}")
+        logger.info(f"Successfully parsed resume for {parsed_data.name} using {settings.AI_MODEL}")
         return parsed_data
     
     except Exception as e:

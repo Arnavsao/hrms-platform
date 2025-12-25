@@ -3,12 +3,9 @@ from supabase import Client
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.core.supabase_client import get_supabase_client
-import google.generativeai as genai
+from app.core.ai_client import generate_json_response
 
 logger = get_logger(__name__)
-
-# Configure Gemini AI
-genai.configure(api_key=settings.GEMINI_API_KEY)
 
 async def match_candidate_to_job(candidate_id: str, job_id: str) -> Dict:
     """
@@ -33,9 +30,6 @@ async def match_candidate_to_job(candidate_id: str, job_id: str) -> Dict:
             raise ValueError(f"Job with id {job_id} not found.")
         job_description = job_response.data
         
-        # Create AI model
-        model = genai.GenerativeModel('gemini-2.0-flash')
-        
         # Craft matching prompt
         prompt = f"""
         You are an expert HR recruiter. Analyze how well this candidate matches the job requirements.
@@ -51,26 +45,16 @@ async def match_candidate_to_job(candidate_id: str, job_id: str) -> Dict:
         2. strengths: List of candidate's strengths relevant to this role
         3. weaknesses: List of gaps or areas where candidate doesn't match
         4. recommendations: List of suggestions for the recruiter
-        
-        Return ONLY valid JSON without markdown formatting.
         """
         
-        # Generate analysis
-        response = model.generate_content(prompt)
-        result_text = response.text.strip()
-        
-        # Clean up markdown if present
-        if result_text.startswith("```json"):
-            result_text = result_text[7:]
-        if result_text.startswith("```"):
-            result_text = result_text[3:]
-        if result_text.endswith("```"):
-            result_text = result_text[:-3]
-        result_text = result_text.strip()
-        
-        # Parse response
-        import json
-        analysis = json.loads(result_text)
+        # Generate analysis using MegaLLM
+        analysis = await generate_json_response(
+            prompt=prompt,
+            model=settings.AI_MODEL,
+            temperature=settings.AI_TEMPERATURE,
+            max_tokens=settings.AI_MAX_TOKENS,
+            system_message="You are an expert HR recruiter specializing in candidate-job matching. Provide accurate, detailed analysis."
+        )
         
         # TODO: Store application with fit score in database
         

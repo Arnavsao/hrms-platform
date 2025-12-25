@@ -2,18 +2,22 @@ from typing import Dict, List
 from app.models.screening import ScreeningResponse, ScreeningEvaluation
 from app.core.config import settings
 from app.core.logging import get_logger
-import google.generativeai as genai
+from app.core.ai_client import generate_json_response, generate_ai_response
 
 logger = get_logger(__name__)
 
-# Configure Gemini AI
-genai.configure(api_key=settings.GEMINI_API_KEY)
-
 async def generate_screening_questions(job_role: str, candidate_profile: Dict) -> List[str]:
-    """Generate adaptive screening questions based on job and candidate"""
+    """
+    Generate adaptive screening questions based on job and candidate using MegaLLM.
+    
+    Args:
+        job_role: The job role/position being screened for
+        candidate_profile: Dictionary containing candidate information
+    
+    Returns:
+        List[str]: List of screening questions
+    """
     try:
-        model = genai.GenerativeModel('gemini-2.0-flash')
-        
         prompt = f"""
         Generate 3 screening interview questions for a candidate.
         
@@ -28,25 +32,26 @@ async def generate_screening_questions(job_role: str, candidate_profile: Dict) -
         Return questions as a JSON array of strings.
         """
         
-        response = model.generate_content(prompt)
-        result_text = response.text.strip()
+        # Generate JSON response using MegaLLM
+        questions = await generate_json_response(
+            prompt=prompt,
+            model=settings.AI_MODEL,
+            temperature=settings.AI_TEMPERATURE,
+            max_tokens=settings.AI_MAX_TOKENS,
+            system_message="You are an expert interviewer. Generate relevant, insightful screening questions."
+        )
         
-        # Clean markdown
-        if result_text.startswith("```json"):
-            result_text = result_text[7:]
-        if result_text.startswith("```"):
-            result_text = result_text[3:]
-        if result_text.endswith("```"):
-            result_text = result_text[:-3]
-        result_text = result_text.strip()
-        
-        import json
-        questions = json.loads(result_text)
-        
-        return questions
+        # Ensure we return a list
+        if isinstance(questions, list):
+            return questions
+        elif isinstance(questions, dict) and "questions" in questions:
+            return questions["questions"]
+        else:
+            raise ValueError(f"Unexpected response format: {type(questions)}")
     
     except Exception as e:
         logger.error(f"Error generating questions: {str(e)}")
+        # Return fallback questions
         return [
             "Tell me about your experience with the technologies mentioned in the job description.",
             "Describe a challenging project you worked on and how you overcame obstacles.",
@@ -54,10 +59,20 @@ async def generate_screening_questions(job_role: str, candidate_profile: Dict) -
         ]
 
 async def evaluate_screening_responses(questions: List[str], responses: List[str]) -> ScreeningEvaluation:
-    """Evaluate candidate's responses using AI"""
+    """
+    Evaluate candidate's responses using MegaLLM AI.
+    
+    Args:
+        questions: List of screening questions asked
+        responses: List of candidate's responses
+    
+    Returns:
+        ScreeningEvaluation: Evaluation object with scores and feedback
+    
+    Raises:
+        Exception: If evaluation fails
+    """
     try:
-        model = genai.GenerativeModel('gemini-2.0-flash')
-        
         # Build Q&A pairs
         qa_pairs = "\n\n".join([
             f"Q: {q}\nA: {a}" 
@@ -77,27 +92,20 @@ async def evaluate_screening_responses(questions: List[str], responses: List[str
         4. summary: Brief summary of the candidate's performance
         5. strengths: List of notable strengths
         6. weaknesses: List of areas for improvement
-        
-        Return ONLY valid JSON.
         """
         
-        response = model.generate_content(prompt)
-        result_text = response.text.strip()
-        
-        # Clean markdown
-        if result_text.startswith("```json"):
-            result_text = result_text[7:]
-        if result_text.startswith("```"):
-            result_text = result_text[3:]
-        if result_text.endswith("```"):
-            result_text = result_text[:-3]
-        result_text = result_text.strip()
-        
-        import json
-        evaluation_data = json.loads(result_text)
+        # Generate JSON evaluation using MegaLLM
+        evaluation_data = await generate_json_response(
+            prompt=prompt,
+            model=settings.AI_MODEL,
+            temperature=settings.AI_TEMPERATURE,
+            max_tokens=settings.AI_MAX_TOKENS,
+            system_message="You are an expert interviewer and evaluator. Provide fair, accurate, and constructive evaluations."
+        )
         
         evaluation = ScreeningEvaluation(**evaluation_data)
         
+        logger.info(f"Evaluated screening responses with overall score: {evaluation.overall_score}")
         return evaluation
     
     except Exception as e:
