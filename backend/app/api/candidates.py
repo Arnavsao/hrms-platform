@@ -134,37 +134,6 @@ async def upload_and_parse_resume(
         logger.error(error_msg, exc_info=True)
         raise HTTPException(status_code=500, detail=error_msg)
 
-@router.get("/{candidate_id}")
-async def get_candidate(
-    candidate_id: str,
-    supabase: Client = Depends(get_supabase_client)
-):
-    """Get candidate details by ID including digital footprint"""
-    try:
-        # Validate UUID format early to avoid 500 from Supabase for invalid IDs like "me"
-        try:
-            uuid.UUID(candidate_id)
-        except ValueError:
-            raise HTTPException(
-                status_code=400,
-                detail="Invalid candidate_id. Provide a UUID or use /api/candidates/me?email=...",
-            )
-
-        # Fetch candidate with digital footprint
-        response = supabase.table("candidates").select(
-            "*, digital_footprints(github_data, linkedin_data, portfolio_data)"
-        ).eq("id", candidate_id).single().execute()
-
-        if response.data:
-            return response.data
-        raise HTTPException(status_code=404, detail="Candidate not found")
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error getting candidate {candidate_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
 @router.get("/")
 async def list_candidates(
     supabase: Client = Depends(get_supabase_client)
@@ -198,6 +167,37 @@ async def get_current_candidate(
     except Exception as e:
         logger.error(f"Error retrieving candidate by email: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to retrieve candidate")
+
+@router.get("/{candidate_id}")
+async def get_candidate(
+    candidate_id: str,
+    supabase: Client = Depends(get_supabase_client)
+):
+    """Get candidate details by ID including digital footprint"""
+    try:
+        # Validate UUID format early to avoid 500 from Supabase for invalid IDs like "me"
+        try:
+            uuid.UUID(candidate_id)
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid candidate_id. Provide a UUID or use /api/candidates/me?email=...",
+            )
+
+        # Fetch candidate with digital footprint
+        response = supabase.table("candidates").select(
+            "*, digital_footprints(github_data, linkedin_data, portfolio_data)"
+        ).eq("id", candidate_id).single().execute()
+
+        if response.data:
+            return response.data
+        raise HTTPException(status_code=404, detail="Candidate not found")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting candidate {candidate_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/", response_model=Candidate)
 async def create_candidate(

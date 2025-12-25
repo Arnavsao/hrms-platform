@@ -108,8 +108,19 @@ async def generate_ai_response(
         return result_text
         
     except Exception as e:
-        logger.error(f"Error generating AI response: {str(e)}")
-        raise
+        error_msg = str(e)
+        logger.error(f"Error generating AI response: {error_msg}")
+
+        # Provide more helpful error messages
+        if "500" in error_msg:
+            logger.error("MegaLLM API returned 500 error. This might indicate:")
+            logger.error("  1. Model 'gpt-5' might not be available")
+            logger.error("  2. API key might have insufficient credits")
+            logger.error("  3. MegaLLM service might be experiencing issues")
+            logger.error(f"  Current model: {model}")
+            logger.error(f"  API base URL: {MEGALLM_BASE_URL}")
+
+        raise Exception(f"AI API Error: {error_msg}")
 
 async def generate_json_response(
     prompt: str,
