@@ -42,7 +42,7 @@ export function Navigation({ className }: NavigationProps) {
 
   const userRole = session?.user?.role;
 
-  const navigationItems = [
+  const navigationItems = session ? [
     {
       name: 'Dashboard',
       href: userRole === 'admin' ? '/admin' : userRole === 'recruiter' ? '/recruiter' : userRole === 'employee' ? '/employee' : '/candidate',
@@ -129,7 +129,7 @@ export function Navigation({ className }: NavigationProps) {
         current: pathname.startsWith('/jobs') && !pathname.startsWith('/jobs/create') && !pathname.startsWith('/jobs/edit'),
       },
     ] : []),
-  ];
+  ] : [];
 
   const handleSignOut = async () => {
     await signOut();
@@ -254,38 +254,46 @@ export function Navigation({ className }: NavigationProps) {
 
           {/* Desktop user menu */}
           <div className="hidden lg:flex lg:items-center lg:space-x-4">
-            <Badge variant={getRoleBadgeVariant(userRole || '')} className="px-3 py-1">
-              {userRole}
-            </Badge>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-9 w-9 rounded-full">
-                  <Avatar className="h-9 w-9">
-                    <AvatarImage src={undefined} />
-                    <AvatarFallback>
-                      {getInitials(session?.user?.email || '')}
-                    </AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-64" align="end" forceMount>
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">
-                      {session?.user?.email}
-                    </p>
-                    <p className="text-xs leading-none text-muted-foreground">
-                      {userRole}
-                    </p>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer">
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Sign out</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {session ? (
+              <>
+                <Badge variant={getRoleBadgeVariant(userRole || '')} className="px-3 py-1">
+                  {userRole}
+                </Badge>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="relative h-9 w-9 rounded-full">
+                      <Avatar className="h-9 w-9">
+                        <AvatarImage src={undefined} />
+                        <AvatarFallback>
+                          {getInitials(session?.user?.email || '')}
+                        </AvatarFallback>
+                      </Avatar>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-64" align="end" forceMount>
+                    <DropdownMenuLabel className="font-normal">
+                      <div className="flex flex-col space-y-1">
+                        <p className="text-sm font-medium leading-none">
+                          {session?.user?.email}
+                        </p>
+                        <p className="text-xs leading-none text-muted-foreground">
+                          {userRole}
+                        </p>
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer">
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Sign out</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
+            ) : (
+              <Button onClick={() => router.push('/login')} size="sm">
+                Sign In
+              </Button>
+            )}
           </div>
         </div>
       </div>

@@ -33,8 +33,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const { data: authListener } = auth.onAuthStateChange((newSession) => {
       setSession(newSession);
-      if (!newSession) {
-        router.push('/login');
+      // Only redirect to login when a previously-authenticated user signs out.
+      // Do NOT redirect on initial page load with no session — that would
+      // block unauthenticated users from visiting the public landing page.
+      if (!newSession && !isLoading) {
+        const publicPaths = ['/', '/login', '/signup'];
+        const currentPath = window.location.pathname;
+        if (!publicPaths.some((p) => currentPath === p || currentPath.startsWith(p + '/'))) {
+          router.push('/login');
+        }
       }
     });
 
