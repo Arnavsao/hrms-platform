@@ -68,12 +68,6 @@ export function Navigation({ className }: NavigationProps) {
         icon: FileText,
         current: pathname.startsWith('/recruiter/applications'),
       },
-      {
-        name: 'Employees',
-        href: '/hr/employees',
-        icon: Users,
-        current: pathname.startsWith('/hr/employees'),
-      },
     ] : []),
     ...(userRole === 'admin' ? [
       {
@@ -81,6 +75,12 @@ export function Navigation({ className }: NavigationProps) {
         href: '/admin/analytics',
         icon: BarChart3,
         current: pathname.startsWith('/admin/analytics'),
+      },
+      {
+        name: 'Employees',
+        href: '/hr/employees',
+        icon: Users,
+        current: pathname.startsWith('/hr/employees'),
       },
     ] : []),
     ...(userRole === 'employee' ? [

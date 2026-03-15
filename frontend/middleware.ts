@@ -104,7 +104,7 @@ export async function middleware(request: NextRequest) {
     if (pathname.startsWith('/employee') && userRole !== UserRole.EMPLOYEE && userRole !== UserRole.ADMIN) {
       return NextResponse.redirect(new URL('/', request.url)); // Not authorized
     }
-    if (pathname.startsWith('/hr') && userRole !== UserRole.RECRUITER && userRole !== UserRole.ADMIN) {
+    if (pathname.startsWith('/hr') && userRole !== UserRole.ADMIN) {
       return NextResponse.redirect(new URL('/', request.url)); // Not authorized
     }
     if (pathname.startsWith('/candidate') && userRole !== UserRole.CANDIDATE && userRole !== UserRole.ADMIN) {
