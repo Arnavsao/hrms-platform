@@ -1,4 +1,21 @@
-# 🚀 AI-Powered HRMS - Recruitment Intelligence Module
+<div align="center">
+
+## 🎥 Demo Video
+
+<a href="https://www.youtube.com/watch?v=wycxYTBBwnc">
+  <img src="https://img.youtube.com/vi/wycxYTBBwnc/0.jpg" width="700"/>
+</a>
+
+---
+
+## 🖼️ Preview
+
+<img src="https://github.com/user-attachments/assets/a141c947-aa8b-49b4-8fab-9e7ca04b8bc5" width="700"/>
+
+</div>
+
+
+# AI-Powered HRMS - Recruitment Intelligence Module
 
 An intelligent HR Management System with AI-powered resume parsing, candidate matching, and conversational screening capabilities.
 
@@ -12,7 +29,7 @@ This project is a modern HRMS platform built for the future of recruitment. It u
 - **Screen candidates** through conversational AI (text/voice)
 - **Provide insights** to recruiters through an intuitive dashboard
 
-## 🏗️ Architecture
+## Architecture
 
 The project follows a microservices architecture:
 
@@ -21,7 +38,7 @@ The project follows a microservices architecture:
 - **Database**: Supabase (PostgreSQL + Auth + Storage)
 - **AI Engine**: Gemini via OpenRouter API
 
-## 📂 Project Structure
+## Project Structure
 
 ```
 ai-hrms/
@@ -41,7 +58,7 @@ ai-hrms/
 └── .github/          # CI/CD workflows
 ```
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -97,7 +114,7 @@ The API will be available at `http://localhost:8000`
 2. Run migrations from `supabase/migrations/`
 3. Configure Row Level Security policies
 
-## 🧪 Testing
+## Testing
 
 ### Frontend Tests
 ```bash
@@ -111,7 +128,7 @@ cd backend
 pytest
 ```
 
-## 📦 Deployment
+## Deployment
 
 ### Frontend (Vercel)
 - Connect your GitHub repository to Vercel
@@ -127,7 +144,7 @@ pytest
 - Already hosted on Supabase cloud
 - Migrations run automatically
 
-## 🔑 Key Features
+## Key Features
 
 ### For Candidates
 - Upload resume (PDF/DOC)
@@ -146,7 +163,7 @@ pytest
 - Monitor recruitment metrics
 - Manage users and roles
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 - **Frontend**: Next.js 14, React 18, TypeScript, TailwindCSS, Shadcn UI
 - **Backend**: FastAPI, Python 3.11, Pydantic
@@ -164,7 +181,7 @@ Once the backend is running, visit:
 - Swagger UI: `http://localhost:8000/docs`
 - ReDoc: `http://localhost:8000/redoc`
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
@@ -172,11 +189,11 @@ Once the backend is running, visit:
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-## 📝 License
+## License
 
 This project is part of a hackathon submission.
 
-## 🎯 Future Roadmap
+## Future Roadmap
 
 - [ ] Add payroll management module
 - [ ] Integrate attendance tracking
@@ -187,7 +204,7 @@ This project is part of a hackathon submission.
 - [ ] Calendar integration for interview scheduling
 - [ ] Attrition prediction models
 
-## 📧 Support
+## Support
 
 For support and queries, please open an issue in the repository.
 
