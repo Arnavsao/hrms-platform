@@ -1,5 +1,6 @@
-[![HRMS Thumbnail](https://github.com/user-attachments/assets/a141c947-aa8b-49b4-8fab-9e7ca04b8bc5)](https://www.youtube.com/watch?v=wycxYTBBwnc)
-
+<a href="https://www.youtube.com/watch?v=wycxYTBBwnc" target="_blank">
+  <img src="https://github.com/user-attachments/assets/a141c947-aa8b-49b4-8fab-9e7ca04b8bc5" width="700" />
+</a>
 
 # AI-Powered HRMS - Recruitment Intelligence Module
 
