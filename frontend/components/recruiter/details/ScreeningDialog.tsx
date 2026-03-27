@@ -69,37 +69,37 @@ export function ScreeningDialog({ applicationId }: ScreeningDialogProps) {
     const { evaluation, transcript } = result;
 
     return (
-        <div className="space-y-6">
-            <div>
-                <h3 className="font-bold text-lg mb-2">Screening Evaluation</h3>
-                <div className="grid grid-cols-3 gap-4 text-center">
-                    <div className="p-4 bg-secondary rounded-lg">
-                        <p className="text-sm text-muted-foreground">Communication</p>
-                        <p className="font-bold text-2xl">{Math.round(evaluation.communication_score)}%</p>
-                    </div>
-                    <div className="p-4 bg-secondary rounded-lg">
-                        <p className="text-sm text-muted-foreground">Domain Knowledge</p>
-                        <p className="font-bold text-2xl">{Math.round(evaluation.domain_knowledge_score)}%</p>
-                    </div>
-                    <div className="p-4 bg-primary text-primary-foreground rounded-lg">
-                        <p className="text-sm">Overall Score</p>
-                        <p className="font-bold text-2xl">{Math.round(evaluation.overall_score)}%</p>
-                    </div>
-                </div>
+      <div className="space-y-6">
+        <div>
+          <h3 className="font-bold text-lg mb-2">Screening Evaluation</h3>
+          <div className="grid grid-cols-3 gap-4 text-center">
+            <div className="p-4 bg-secondary rounded-lg">
+              <p className="text-sm text-muted-foreground">Communication</p>
+              <p className="font-bold text-2xl">{Math.round(evaluation.communication_score)}%</p>
             </div>
-
-            <div>
-                <h4 className="font-semibold">AI Summary</h4>
-                <p className="text-sm text-muted-foreground">{evaluation.summary}</p>
+            <div className="p-4 bg-secondary rounded-lg">
+              <p className="text-sm text-muted-foreground">Domain Knowledge</p>
+              <p className="font-bold text-2xl">{Math.round(evaluation.domain_knowledge_score)}%</p>
             </div>
-
-
-            <div>
-                <h4 className="font-semibold">Transcript</h4>
-                <div className="mt-2 p-4 bg-secondary rounded-lg text-sm max-h-40 overflow-y-auto">
-                    <pre className="whitespace-pre-wrap font-sans">{transcript}</pre>
-                </div>
+            <div className="p-4 bg-primary text-primary-foreground rounded-lg">
+              <p className="text-sm">Overall Score</p>
+              <p className="font-bold text-2xl">{Math.round(evaluation.overall_score)}%</p>
             </div>
+          </div>
+        </div>
+
+        <div>
+          <h4 className="font-semibold">AI Summary</h4>
+          <p className="text-sm text-muted-foreground">{evaluation.summary}</p>
+        </div>
+
+
+        <div>
+          <h4 className="font-semibold">Transcript</h4>
+          <div className="mt-2 p-4 bg-secondary rounded-lg text-sm max-h-40 overflow-y-auto">
+            <pre className="whitespace-pre-wrap font-sans">{transcript}</pre>
+          </div>
+        </div>
       </div>
     );
   };

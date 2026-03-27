@@ -108,7 +108,16 @@ async def create_voice_interview_session(
     if not response.data:
         raise HTTPException(status_code=404, detail="Application not found")
 
-    context = _build_application_context(response.data)
+    application_data = response.data
+
+    # Permission gate: block only if explicitly set to false
+    if application_data.get("interview_allowed", True) is False:
+        raise HTTPException(
+            status_code=403,
+            detail="Interview not yet permitted. Please contact your recruiter to enable the voice interview for your application.",
+        )
+
+    context = _build_application_context(application_data)
 
     question_limit = request.question_count
     if question_limit is not None and question_limit <= 0:

@@ -21,9 +21,9 @@ class Settings(BaseSettings):
     SUPABASE_KEY: str
     DATABASE_URL: str
 
-    # AI Configuration - MegaLLM
-    MEGALLM_API_KEY: str
-    AI_MODEL: str = "gpt-5"
+    # AI Configuration - Google Gemini
+    MEGALLM_API_KEY: str = ""  # kept for backward compat, no longer used
+    AI_MODEL: str = "gemini-2.5-flash"
     AI_TEMPERATURE: float = 0.7
     AI_MAX_TOKENS: int = 2048
     GEMINI_LIVE_MODEL: str = "models/gemini-2.5-flash-native-audio-preview-09-2025"
@@ -51,26 +51,23 @@ class Settings(BaseSettings):
     @classmethod
     def normalize_ai_model(cls, v: str) -> str:
         """
-        Normalize AI model name to ensure compatibility with MegaLLM.
-        Removes 'google/' prefix and converts legacy Gemini models to gpt-5.
+        Normalize AI model name for Google Gemini compatibility.
+        Converts any legacy gpt-5/MegaLLM model names to gemini-2.5-flash.
         """
         if not v:
-            return "gpt-5"
+            return "gemini-2.5-flash"
 
-        original = v
-
-        # Remove google/ prefix if present
+        # Remove google/ prefix if present (not needed for google-generativeai SDK)
         if v.startswith("google/"):
-            logger.warning(f"Removing 'google/' prefix from AI_MODEL: {v}")
             v = v.replace("google/", "")
 
-        # Convert legacy Gemini models to gpt-5
-        if "gemini" in v.lower():
+        # Convert legacy gpt-5/MegaLLM model names to Gemini
+        if v in ("gpt-5", "gpt5") or v.startswith("gpt"):
             logger.warning(
-                f"Legacy Gemini model '{original}' detected. "
-                f"Converting to 'gpt-5' for MegaLLM compatibility."
+                f"Legacy MegaLLM model '{v}' detected. "
+                f"Converting to 'gemini-2.5-flash'."
             )
-            return "gpt-5"
+            return "gemini-2.5-flash"
 
         return v
 

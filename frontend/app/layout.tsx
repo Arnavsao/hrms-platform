@@ -22,8 +22,8 @@ export default function RootLayout({
         <AuthProvider>
           <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
             <Navigation />
-            <main className="flex-1 overflow-y-auto">
-              <div className="w-full">
+          <main className="flex-1 overflow-y-auto">
+              <div className="w-full max-w-7xl mx-auto px-4">
                 {children}
               </div>
             </main>

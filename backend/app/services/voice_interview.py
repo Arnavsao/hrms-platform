@@ -7,7 +7,8 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 from uuid import uuid4
 
-import google.generativeai as genai
+from google import genai
+from google.genai import types as genai_types
 from fastapi import WebSocket, WebSocketDisconnect
 from supabase import Client
 
@@ -21,38 +22,34 @@ from app.services.ai_screening import (
 
 logger = get_logger(__name__)
 
-# Configure generative models (legacy SDK is still used for text evaluations)
-genai.configure(api_key=settings.GEMINI_API_KEY)
+# Configure generative models using new SDK
+# (genai.Client handles auth; no separate configure() call needed)
 
-# Try to create live client (may not be available in all versions)
+# Try to create live client
 try:
     live_client = genai.Client(
         http_options={"api_version": "v1beta"},
         api_key=settings.GEMINI_API_KEY,
     )
-    
-    # Try to import types - may not be available in all SDK versions
-    try:
-        from google.generativeai import types
-        
-        LIVE_CONNECT_CONFIG = types.LiveConnectConfig(
-            response_modalities=["AUDIO"],
-            speech_config=types.SpeechConfig(
-                voice_config=types.VoiceConfig(
-                    prebuilt_voice_config=types.PrebuiltVoiceConfig(
-                        voice_name=getattr(settings, 'GEMINI_LIVE_VOICE', 'Aoede')
-                    )
+
+    LIVE_CONNECT_CONFIG = genai_types.LiveConnectConfig(
+        response_modalities=["AUDIO"],
+        # Enable transcription so user speech is visible in the UI
+        input_audio_transcription=genai_types.AudioTranscriptionConfig(),
+        output_audio_transcription=genai_types.AudioTranscriptionConfig(),
+        speech_config=genai_types.SpeechConfig(
+            voice_config=genai_types.VoiceConfig(
+                prebuilt_voice_config=genai_types.PrebuiltVoiceConfig(
+                    voice_name=getattr(settings, 'GEMINI_LIVE_VOICE', 'Aoede')
                 )
-            ),
-        )
-    except (ImportError, AttributeError):
-        # Fallback if types not available
-        LIVE_CONNECT_CONFIG = None
-        logger.warning("Voice interview types not available - voice interviews may not work")
-except (AttributeError, TypeError):
+            )
+        ),
+    )
+    logger.info("Voice interview client initialized successfully")
+except Exception as exc:
     live_client = None
     LIVE_CONNECT_CONFIG = None
-    logger.warning("Voice interview client not available - voice interviews may not work")
+    logger.warning("Voice interview client not available - voice interviews may not work: %s", exc)
 
 
 class VoiceInterviewError(Exception):
@@ -107,7 +104,12 @@ class VoiceInterviewSession:
         self.max_questions = max(1, configured_limit)
         self._pending_answer_parts: List[str] = []
         self._finalize_event_sent = False
-        
+
+        # Transcript buffering — Gemini sends partial tokens word-by-word.
+        # We accumulate them and flush as one complete entry on turn_complete.
+        self._ai_transcript_buffer: str = ""
+        self._user_transcript_buffer: str = ""
+
         # Follow-up tracking
         self.followup_count_per_question: Dict[int, int] = {}
         self.last_answer_word_count = 0
@@ -204,38 +206,17 @@ class VoiceInterviewSession:
         if not self._session:
             return
 
-        greeting = (settings.VOICE_INTERVIEW_GREETING or "").strip()
-        if not greeting:
-            return
-
-        context_bits = []
-        if self.context.candidate_name:
-            context_bits.append(
-                f"The candidate's name is {self.context.candidate_name}. Greet them warmly by name."
-            )
-        if self.context.job_title:
-            context_bits.append(
-                f"They're interviewing for the {self.context.job_title} position."
-            )
-
-        context_bits.append(
-            f"You will ask {self.max_questions} main questions. "
-            "CRITICAL: After asking each question, you MUST stop talking immediately. "
-            "Do NOT continue speaking. Do NOT add commentary. "
-            "Wait in complete silence for the candidate's full response. "
-            "Only speak again when explicitly prompted. "
-            "If their answer is very brief, you may ask ONE follow-up, but again STOP TALKING after the follow-up."
+        # Short, direct prompt — less text means faster first response from Gemini
+        name_part = f" The candidate is {self.context.candidate_name}." if self.context.candidate_name else ""
+        role_part = f" Role: {self.context.job_title}." if self.context.job_title else ""
+        payload = (
+            f"You are a professional HR interviewer.{name_part}{role_part} "
+            f"Ask {self.max_questions} interview question(s) one at a time. "
+            "After each question, stay silent and wait for the candidate to answer fully before proceeding."
         )
-
-        payload = f"{greeting}\n\n{' '.join(context_bits)}".strip()
         try:
-            logger.debug(
-                "Session %s priming Gemini context: %s",
-                self.session_id,
-                payload,
-            )
             await self._session.send(input=payload, end_of_turn=False)
-        except Exception as exc:  # pragma: no cover - network failure path
+        except Exception as exc:  # pragma: no cover
             logger.warning("Failed to prime voice interview session: %s", exc)
 
     def _record_timeline(
@@ -621,44 +602,69 @@ class VoiceInterviewSession:
             while self._active:
                 turn = self._session.receive()
                 async for response in turn:
+                    # 1. Raw audio output from Gemini → stream to browser
                     if getattr(response, "data", None):
-                        audio_bytes = response.data
-                        if audio_bytes:
-                            payload = {
-                                "type": "audio_chunk",
-                                "data": base64.b64encode(audio_bytes).decode("ascii"),
-                                "sample_rate": settings.GEMINI_LIVE_SAMPLE_RATE_RECEIVE,
-                            }
-                            await self.event_queue.put(payload)
-                    if getattr(response, "text", None):
+                        await self.event_queue.put({
+                            "type": "audio_chunk",
+                            "data": base64.b64encode(response.data).decode("ascii"),
+                            "sample_rate": settings.GEMINI_LIVE_SAMPLE_RATE_RECEIVE,
+                        })
+
+                    # 2. Server content — transcriptions and turn signals
+                    sc = getattr(response, "server_content", None)
+                    if sc:
+                        # Accumulate partial output transcription tokens (AI speech)
+                        out_tr = getattr(sc, "output_transcription", None)
+                        if out_tr and getattr(out_tr, "text", None):
+                            self._ai_transcript_buffer += out_tr.text
+
+                        # Accumulate partial input transcription tokens (user speech)
+                        in_tr = getattr(sc, "input_transcription", None)
+                        if in_tr and getattr(in_tr, "text", None):
+                            self._user_transcript_buffer += in_tr.text
+
+                        # turn_complete=True means Gemini has finished its response turn.
+                        # Flush both buffers as single complete transcript entries.
+                        if getattr(sc, "turn_complete", False):
+                            # Flush AI output buffer
+                            if self._ai_transcript_buffer.strip():
+                                ai_text = self._ai_transcript_buffer.strip()
+                                self._ai_transcript_buffer = ""
+                                timestamp = datetime.now(timezone.utc).isoformat()
+                                # Deduplicate against recent items
+                                if not any(t["role"] == "assistant" and t["text"] == ai_text for t in self.transcript_items[-3:]):
+                                    self.transcript_items.append({"role": "assistant", "text": ai_text, "timestamp": timestamp})
+                                    self._record_timeline(event_type="assistant_transcription", role="assistant", text=ai_text)
+                                    await self.event_queue.put({"type": "transcript", "role": "assistant", "text": ai_text, "timestamp": timestamp})
+                                    logger.debug("Session %s AI turn complete: %s", self.session_id, ai_text[:80])
+
+                            # Flush user input buffer
+                            if self._user_transcript_buffer.strip():
+                                user_text = self._user_transcript_buffer.strip()
+                                self._user_transcript_buffer = ""
+                                timestamp = datetime.now(timezone.utc).isoformat()
+                                self.transcript_items.append({"role": "candidate", "text": user_text, "timestamp": timestamp})
+                                self._record_timeline(event_type="candidate_response_transcribed", role="candidate", text=user_text)
+                                await self.event_queue.put({"type": "transcript", "role": "candidate", "text": user_text, "timestamp": timestamp})
+                                logger.debug("Session %s user turn complete: %s", self.session_id, user_text[:80])
+                                # Drive interview question logic from transcribed audio
+                                word_count = len(user_text.split())
+                                self.last_answer_word_count = word_count
+                                if self.awaiting_answer and not self.closing_dispatched:
+                                    self.awaiting_answer = False
+                                    if await self._should_send_followup(user_text, word_count):
+                                        await self._send_followup_question(user_text)
+                                    else:
+                                        await self._send_next_question()
+
+                    # 3. Fallback: plain text (older SDK compat — buffer and flush immediately)
+                    elif getattr(response, "text", None) and response.text.strip():
                         text_value = response.text.strip()
-                        if text_value:
-                            logger.debug(
-                                "Session %s received interviewer text (%s chars)",
-                                self.session_id,
-                                len(text_value),
-                            )
-                            timestamp = datetime.now(timezone.utc).isoformat()
-                            self.transcript_items.append(
-                                {
-                                    "role": "assistant",
-                                    "text": text_value,
-                                    "timestamp": timestamp,
-                                }
-                            )
-                            self._record_timeline(
-                                event_type="assistant_message",
-                                role="assistant",
-                                text=text_value,
-                            )
-                            await self.event_queue.put(
-                                {
-                                    "type": "transcript",
-                                    "role": "assistant",
-                                    "text": text_value,
-                                    "timestamp": timestamp,
-                                }
-                            )
+                        timestamp = datetime.now(timezone.utc).isoformat()
+                        if not any(t["text"] == text_value for t in self.transcript_items[-3:]):
+                            self.transcript_items.append({"role": "assistant", "text": text_value, "timestamp": timestamp})
+                            self._record_timeline(event_type="assistant_message", role="assistant", text=text_value)
+                            await self.event_queue.put({"type": "transcript", "role": "assistant", "text": text_value, "timestamp": timestamp})
         except asyncio.CancelledError:  # pragma: no cover - cancellation path
             logger.debug("Receive loop cancelled for session %s", self.session_id)
         except Exception as exc:  # pragma: no cover - network failure path
@@ -795,10 +801,10 @@ class VoiceInterviewSession:
                     "application_id": self.context.application_id,
                     "transcript": transcript_text,
                     "ai_summary": evaluation.dict(),
-                    "communication_score": evaluation.communication_score,
-                    "domain_knowledge_score": evaluation.domain_knowledge_score,
-                    "overall_score": evaluation.overall_score,
-                    "score": evaluation.overall_score,
+                    "communication_score": int(evaluation.communication_score),
+                    "domain_knowledge_score": int(evaluation.domain_knowledge_score),
+                    "overall_score": int(evaluation.overall_score),
+                    "score": int(evaluation.overall_score),
                     "mode": "voice",
                     "duration_seconds": duration_seconds,
                     "session_metadata": metadata,
@@ -871,8 +877,17 @@ class VoiceInterviewSessionManager:
         max_questions: Optional[int] = None,
     ) -> VoiceInterviewSession:
         session = VoiceInterviewSession(context, max_questions=max_questions)
+
+        # Set default questions immediately — skip slow AI generation so Gemini connects ASAP.
+        # This is the single biggest startup-time win (saves 3-5 seconds of MegaLLM latency).
+        job_role = context.job_title or "this position"
+        session.questions = [
+            f"Please introduce yourself and tell me what motivated you to apply for {job_role}.",
+            "Walk me through a challenging project or situation you faced professionally and how you handled it.",
+            "What do you consider your greatest strengths, and how would they contribute to this role?",
+        ][:session.max_questions]
+
         try:
-            await session.prepare()
             await session.connect()
         except VoiceInterviewSessionError:
             raise
@@ -965,6 +980,28 @@ async def forward_client_messages(
                     is_final=bool(data.get("is_final", True)),
                     source=data.get("source"),
                 )
+            elif kind == "audio_chunk":
+                # Raw 16kHz PCM audio from browser mic — stream directly to Gemini Live
+                raw_b64 = data.get("data", "")
+                if raw_b64 and session._session:
+                    try:
+                        audio_bytes = base64.b64decode(raw_b64)
+                        # send_realtime_input is the correct API for streaming mic audio.
+                        # It uses Gemini's built-in VAD to detect speech turns automatically.
+                        await session._session.send_realtime_input(
+                            audio=genai_types.Blob(
+                                data=audio_bytes,
+                                mime_type="audio/pcm;rate=16000",
+                            )
+                        )
+                    except Exception as exc:
+                        logger.warning("Failed to forward audio chunk for session %s: %s", session.session_id, exc)
+            elif kind == "candidate_done":
+                # Candidate manually signals end of their answer — advance to next question
+                logger.debug("Session %s received candidate_done signal", session.session_id)
+                if not session.closing_dispatched:
+                    session.awaiting_answer = False
+                    await session._send_next_question()
             elif kind == "end_session":
                 logger.debug("Session %s received end_session signal", session.session_id)
                 await session.close()

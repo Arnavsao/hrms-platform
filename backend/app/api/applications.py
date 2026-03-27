@@ -217,7 +217,7 @@ async def create_application(
 async def update_application_status(
     application_id: str,
     payload: ApplicationStatusUpdate,
-    supabase: Client = Depends(get_supabase_client)
+    supabase: Client = Depends(get_supabase_client),
 ):
     """Update application status"""
     try:
@@ -231,4 +231,34 @@ async def update_application_status(
     except Exception as e:
         logger.error(f"Error updating application status: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to update application status.")
+
+
+class InterviewPermissionUpdate(BaseModel):
+    allowed: bool
+
+
+@router.patch("/{application_id}/interview-permission")
+async def set_interview_permission(
+    application_id: str,
+    payload: InterviewPermissionUpdate,
+    supabase: Client = Depends(get_supabase_client),
+):
+    """Allow or revoke a candidate's ability to take the voice interview."""
+    try:
+        response = (
+            supabase.table("applications")
+            .update({"interview_allowed": payload.allowed})
+            .eq("id", application_id)
+            .execute()
+        )
+        if not response.data:
+            raise HTTPException(status_code=404, detail="Application not found")
+        logger.info(f"Interview permission for application {application_id} set to {payload.allowed}")
+        return {"id": application_id, "interview_allowed": payload.allowed}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error setting interview permission: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to update interview permission.")
+
 

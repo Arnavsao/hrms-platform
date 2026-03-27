@@ -261,6 +261,12 @@ export const api = {
     return response.data;
   },
 
+  // Allow or revoke a candidate's voice interview permission
+  setInterviewPermission: async (applicationId: string, allowed: boolean) => {
+    const response = await apiClient.patch(`/api/applications/${applicationId}/interview-permission`, { allowed });
+    return response.data;
+  },
+
   listScreeningsForApplication: async (applicationId: string) => {
     const response = await apiClient.get(`/api/screenings/application/${applicationId}`);
     return response.data;

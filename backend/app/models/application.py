@@ -10,6 +10,7 @@ class ApplicationBase(BaseModel):
     fit_score: Optional[float] = None
     highlights: Optional[Dict[str, Any]] = None
     status: str = "pending"
+    interview_allowed: bool = True
 
 class ApplicationCreate(ApplicationBase):
     """Model for creating an application"""
@@ -46,6 +47,7 @@ class ApplicationDetail(BaseModel):
     fit_score: Optional[float] = None
     highlights: Optional[Dict[str, Any]] = None
     status: str
+    interview_allowed: bool = True
     created_at: datetime
     updated_at: datetime
     candidate: Optional[Dict[str, Any]] = None
