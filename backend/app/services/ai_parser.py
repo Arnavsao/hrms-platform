@@ -188,7 +188,7 @@ def extract_links_with_regex(text: str) -> Dict[str, str]:
 
 async def parse_resume_with_ai(text: str, pdf_links: Dict[str, str] = None) -> ParsedData:
     """
-    Use MegaLLM (GPT-5) to parse resume text and extract structured data.
+    Use Gemini to parse resume text and extract structured data.
 
     Extracts: name, email, phone, skills, education, experience, and links
 
@@ -206,41 +206,44 @@ async def parse_resume_with_ai(text: str, pdf_links: Dict[str, str] = None) -> P
         if pdf_links is None:
             pdf_links = {}
 
+        # Cap resume text to avoid exceeding model context limits
+        # 6000 chars is ~1500 tokens, well within any model's context window
+        MAX_RESUME_CHARS = 6000
+        truncated_text = text[:MAX_RESUME_CHARS] if len(text) > MAX_RESUME_CHARS else text
+        if len(text) > MAX_RESUME_CHARS:
+            logger.warning(
+                f"Resume text truncated from {len(text)} to {MAX_RESUME_CHARS} chars "
+                "to stay within model context."
+            )
+
         # Craft prompt for structured extraction
-        prompt = f"""
-        Parse the following resume and extract structured information in JSON format.
+        prompt = f"""Parse this resume and return a single valid JSON object with these exact keys:
+- name (string): Full name
+- email (string): Email address
+- phone (string or null): Phone number
+- skills (array of strings): Technical and professional skills
+- education (array of objects): Each with keys: degree, institution, year
+- experience (array of objects): Each with keys: company, role, duration, description
+- links (object): Keys: github, linkedin, portfolio — use full https:// URLs or null
 
-        Extract the following fields:
-        - name: Full name of the candidate
-        - email: Email address
-        - phone: Phone number (if available)
-        - skills: List of technical and professional skills
-        - education: List of education entries with degree, institution, year
-        - experience: List of work experience with company, role, duration, description
-        - links: Object with github, linkedin, portfolio URLs (if found)
+Rules for links:
+- github: must contain github.com/username
+- linkedin: must contain linkedin.com/in/username
+- portfolio: any personal website URL near keywords "portfolio" or "website"
+- Set to null if not clearly found
 
-        IMPORTANT for links extraction:
-        - Look for URLs near keywords like "GitHub Profile", "LinkedIn Profile", "Portfolio Website"
-        - Extract the FULL URL including https://
-        - For GitHub: Look for github.com/username patterns
-        - For LinkedIn: Look for linkedin.com/in/username patterns
-        - For Portfolio: Look for personal website URLs near "portfolio" or "website" keywords
-        - If a label exists (e.g., "GitHub Profile") but no URL follows, mark as null
-        - Only include valid, complete URLs
+Resume:
+{truncated_text}
 
-        Resume text:
-        {text}
+Return ONLY the raw JSON object. No markdown, no explanation, no code fences."""
 
-        Return ONLY valid JSON without any markdown formatting or additional text.
-        """
-
-        # Generate JSON response using MegaLLM
+        # Generate JSON response using Gemini
         parsed_json = await generate_json_response(
             prompt=prompt,
             model=settings.AI_MODEL,
-            temperature=settings.AI_TEMPERATURE,
+            temperature=0.3,  # Lower temp for more deterministic JSON output
             max_tokens=settings.AI_MAX_TOKENS,
-            system_message="You are an expert resume parser. Extract structured data accurately and return only valid JSON."
+            system_message="You are an expert resume parser. Always return valid, complete JSON."
         )
 
         # Extract links using regex as a fallback/enhancement

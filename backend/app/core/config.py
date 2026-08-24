@@ -1,5 +1,4 @@
 from pydantic_settings import BaseSettings
-from pydantic import field_validator
 from typing import List, Union
 import logging
 
@@ -21,11 +20,10 @@ class Settings(BaseSettings):
     SUPABASE_KEY: str
     DATABASE_URL: str
 
-    # AI Configuration - Google Gemini
-    MEGALLM_API_KEY: str = ""  # kept for backward compat, no longer used
+    # AI Configuration - Google Gemini (text + voice share GEMINI_API_KEY)
     AI_MODEL: str = "gemini-2.5-flash"
     AI_TEMPERATURE: float = 0.7
-    AI_MAX_TOKENS: int = 2048
+    AI_MAX_TOKENS: int = 8192  # Raised to prevent JSON truncation on long resumes
     GEMINI_LIVE_MODEL: str = "models/gemini-2.5-flash-native-audio-preview-09-2025"
     GEMINI_LIVE_VOICE: str = "Zephyr"
     GEMINI_LIVE_SAMPLE_RATE_SEND: int = 16000
@@ -39,37 +37,17 @@ class Settings(BaseSettings):
     )
     VOICE_INTERVIEW_MAX_QUESTIONS: int = 3
     VOICE_INTERVIEW_STYLE: str = "behavioral"  # behavioral, technical, mixed
-    VOICE_INTERVIEW_ALLOW_FOLLOWUPS: bool = True
+    VOICE_INTERVIEW_ALLOW_FOLLOWUPS: bool = False
     VOICE_INTERVIEW_MAX_FOLLOWUPS_PER_QUESTION: int = 1
     VOICE_INTERVIEW_MIN_ANSWER_LENGTH: int = 30  # words - trigger follow-up if too short
 
-    # Legacy AI Configuration (deprecated, kept for backward compatibility)
-    OPENROUTER_API_KEY: str = ""
+    # Primary AI key — used for both Gemini text generation and Gemini Live voice
     GEMINI_API_KEY: str = ""
 
-    @field_validator('AI_MODEL')
-    @classmethod
-    def normalize_ai_model(cls, v: str) -> str:
-        """
-        Normalize AI model name for Google Gemini compatibility.
-        Converts any legacy gpt-5/MegaLLM model names to gemini-2.5-flash.
-        """
-        if not v:
-            return "gemini-2.5-flash"
-
-        # Remove google/ prefix if present (not needed for google-generativeai SDK)
-        if v.startswith("google/"):
-            v = v.replace("google/", "")
-
-        # Convert legacy gpt-5/MegaLLM model names to Gemini
-        if v in ("gpt-5", "gpt5") or v.startswith("gpt"):
-            logger.warning(
-                f"Legacy MegaLLM model '{v}' detected. "
-                f"Converting to 'gemini-2.5-flash'."
-            )
-            return "gemini-2.5-flash"
-
-        return v
+    # Legacy AI Configuration (deprecated, no longer used; declared so existing
+    # .env files carrying these keys still load)
+    OPENROUTER_API_KEY: str = ""
+    MEGALLM_API_KEY: str = ""
 
     # File Upload Configuration
     MAX_UPLOAD_SIZE: int = 10485760  # 10MB

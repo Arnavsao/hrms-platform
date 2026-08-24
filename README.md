@@ -21,7 +21,7 @@ The project follows a microservices architecture:
 - **Frontend**: Next.js 14 (React) with TailwindCSS and Shadcn UI
 - **Backend**: FastAPI (Python) for AI services
 - **Database**: Supabase (PostgreSQL + Auth + Storage)
-- **AI Engine**: Gemini via OpenRouter API
+- **AI Engine**: Google Gemini — `gemini-2.5-flash` for text, Gemini Live for voice interviews
 
 ## Project Structure
 
@@ -51,7 +51,7 @@ ai-hrms/
 - Python 3.11+
 - Git
 - Supabase account
-- OpenRouter API key (for Gemini)
+- Google Gemini API key (from Google AI Studio) — used for both text and voice
 
 ### Environment Setup
 
@@ -68,7 +68,7 @@ ai-hrms/
 
 3. **Configure .env file**
    - Add your Supabase credentials
-   - Add your OpenRouter/Gemini API key
+   - Add your `GEMINI_API_KEY` (powers resume parsing, matching, screening, and voice interviews)
    - Update other configuration as needed
 
 ### Frontend Setup
@@ -155,7 +155,7 @@ pytest
 - **Database**: Supabase (PostgreSQL)
 - **Auth**: Supabase Auth with RBAC
 - **Storage**: Supabase Storage
-- **AI**: Gemini (via OpenRouter API)
+- **AI**: Google Gemini (`google-genai` SDK) — `gemini-2.5-flash` text + Gemini Live audio
 - **Testing**: PyTest, Jest
 - **CI/CD**: GitHub Actions
 - **Hosting**: Vercel (Frontend), Render (Backend)

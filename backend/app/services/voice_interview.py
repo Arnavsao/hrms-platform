@@ -34,7 +34,6 @@ try:
 
     LIVE_CONNECT_CONFIG = genai_types.LiveConnectConfig(
         response_modalities=["AUDIO"],
-        # Enable transcription so user speech is visible in the UI
         input_audio_transcription=genai_types.AudioTranscriptionConfig(),
         output_audio_transcription=genai_types.AudioTranscriptionConfig(),
         speech_config=genai_types.SpeechConfig(
@@ -50,6 +49,32 @@ except Exception as exc:
     live_client = None
     LIVE_CONNECT_CONFIG = None
     logger.warning("Voice interview client not available - voice interviews may not work: %s", exc)
+
+
+def _normalize_for_dedup(text: str) -> str:
+    """Lowercase and strip punctuation/whitespace so near-identical lines compare equal."""
+    return " ".join("".join(c for c in text.lower() if c.isalnum() or c.isspace()).split())
+
+
+def _is_near_duplicate(candidate: str, existing: str, threshold: float = 0.8) -> bool:
+    """
+    True when two transcript lines say substantially the same thing.
+
+    Gemini re-speaks a scripted question with its own preamble ("Good morning, Jane,
+    <question>"), so exact string equality misses the duplicate. Compare on normalized
+    token overlap relative to the shorter line, which catches both the prefixed and the
+    lightly-reworded case.
+    """
+    a, b = _normalize_for_dedup(candidate), _normalize_for_dedup(existing)
+    if not a or not b:
+        return False
+    if a == b or a in b or b in a:
+        return True
+    tokens_a, tokens_b = set(a.split()), set(b.split())
+    shorter = min(len(tokens_a), len(tokens_b))
+    if shorter < 4:  # too short to judge by overlap
+        return False
+    return len(tokens_a & tokens_b) / shorter >= threshold
 
 
 class VoiceInterviewError(Exception):
@@ -132,6 +157,15 @@ class VoiceInterviewSession:
 
         job_role = self.context.job_title or "Candidate"
         candidate_profile = self.context.candidate_profile or {}
+        job_profile = self.context.job_profile or {}
+
+        # Build an enriched profile that includes JD details so questions are tailored
+        enriched_profile = {
+            **candidate_profile,
+            "job_title": job_role,
+            "job_requirements": job_profile.get("requirements", ""),
+            "job_description": str(job_profile.get("description", ""))[:800],
+        }
 
         try:
             logger.debug(
@@ -140,7 +174,7 @@ class VoiceInterviewSession:
                 job_role,
                 candidate_profile.get("skills"),
             )
-            questions = await generate_screening_questions(job_role, candidate_profile)
+            questions = await generate_screening_questions(job_role, enriched_profile)
             self.questions = [q.strip() for q in questions if isinstance(q, str) and q.strip()]
         except Exception as exc:  # pragma: no cover - fallback path
             logger.warning("Falling back to default voice interview questions: %s", exc)
@@ -206,13 +240,14 @@ class VoiceInterviewSession:
         if not self._session:
             return
 
-        # Short, direct prompt — less text means faster first response from Gemini
         name_part = f" The candidate is {self.context.candidate_name}." if self.context.candidate_name else ""
         role_part = f" Role: {self.context.job_title}." if self.context.job_title else ""
         payload = (
             f"You are a professional HR interviewer.{name_part}{role_part} "
-            f"Ask {self.max_questions} interview question(s) one at a time. "
-            "After each question, stay silent and wait for the candidate to answer fully before proceeding."
+            f"You will ask exactly {self.max_questions} question(s), one at a time, in English. "
+            "After asking each question, stop talking completely and wait in silence. "
+            "Do NOT ask follow-up questions. Do NOT prompt the candidate to elaborate. "
+            "Move to the next question only when explicitly instructed to do so."
         )
         try:
             await self._session.send(input=payload, end_of_turn=False)
@@ -249,21 +284,17 @@ class VoiceInterviewSession:
             return
 
         question = self.questions[self.question_index]
-        prompt_parts = [
-            "Ask the following question in a natural, conversational way. "
-            "CRITICAL INSTRUCTION: After you finish asking the question, you MUST stop talking immediately. "
-            "Do NOT add any commentary, follow-up, or continue speaking. "
-            "Remain completely silent and wait for the candidate to respond. "
-            "You will only speak again when explicitly told to ask the next question."
-        ]
-
+        greeting = ""
         if self.question_index == 0 and self.context.candidate_name:
-            prompt_parts.append(
-                f"Start by greeting {self.context.candidate_name} warmly to make them comfortable."
-            )
+            greeting = f"Greet {self.context.candidate_name} briefly in English, then ask: "
+        else:
+            greeting = "Ask ONLY this question in English, nothing else: "
 
-        prompt_parts.append(f"\nQuestion: {question}")
-        prompt = "\n".join(prompt_parts)
+        prompt = (
+            f"{greeting}\"{question}\" "
+            "STOP immediately after asking. Do NOT add follow-up questions, prompts to elaborate, "
+            "or any extra commentary. Speak ONLY in English."
+        )
 
         try:
             logger.debug(
@@ -618,44 +649,55 @@ class VoiceInterviewSession:
                         if out_tr and getattr(out_tr, "text", None):
                             self._ai_transcript_buffer += out_tr.text
 
-                        # Accumulate partial input transcription tokens (user speech)
+                        # Stream partial input transcription tokens in real-time so
+                        # the candidate can see their speech appear as they speak.
                         in_tr = getattr(sc, "input_transcription", None)
                         if in_tr and getattr(in_tr, "text", None):
                             self._user_transcript_buffer += in_tr.text
+                            # Send partial token immediately for real-time display
+                            await self.event_queue.put({
+                                "type": "transcript_partial",
+                                "role": "candidate",
+                                "text": self._user_transcript_buffer,
+                            })
 
-                        # turn_complete=True means Gemini has finished its response turn.
-                        # Flush both buffers as single complete transcript entries.
+                        # turn_complete=True means Gemini finished its current turn.
+                        # For AI turns: flush buffer and signal frontend that question is done (start timer).
+                        # For user turns: flush buffer only — DO NOT auto-advance questions.
+                        # Advancing only happens when the frontend sends candidate_done.
                         if getattr(sc, "turn_complete", False):
                             # Flush AI output buffer
                             if self._ai_transcript_buffer.strip():
                                 ai_text = self._ai_transcript_buffer.strip()
                                 self._ai_transcript_buffer = ""
                                 timestamp = datetime.now(timezone.utc).isoformat()
-                                # Deduplicate against recent items
-                                if not any(t["role"] == "assistant" and t["text"] == ai_text for t in self.transcript_items[-3:]):
+                                # Deduplicate against recent items. The scripted question was
+                                # already recorded by _send_next_question, and Gemini speaks it
+                                # back with its own preamble — near-duplicate, not exact.
+                                if not any(
+                                    t["role"] == "assistant" and _is_near_duplicate(ai_text, t["text"])
+                                    for t in self.transcript_items[-3:]
+                                ):
                                     self.transcript_items.append({"role": "assistant", "text": ai_text, "timestamp": timestamp})
                                     self._record_timeline(event_type="assistant_transcription", role="assistant", text=ai_text)
                                     await self.event_queue.put({"type": "transcript", "role": "assistant", "text": ai_text, "timestamp": timestamp})
                                     logger.debug("Session %s AI turn complete: %s", self.session_id, ai_text[:80])
+                                # Signal frontend that AI finished speaking → start answer timer
+                                await self.event_queue.put({"type": "status", "message": "question_complete"})
 
-                            # Flush user input buffer
+                            # Flush user input buffer — accumulate for evaluation but do NOT advance
                             if self._user_transcript_buffer.strip():
                                 user_text = self._user_transcript_buffer.strip()
                                 self._user_transcript_buffer = ""
                                 timestamp = datetime.now(timezone.utc).isoformat()
-                                self.transcript_items.append({"role": "candidate", "text": user_text, "timestamp": timestamp})
-                                self._record_timeline(event_type="candidate_response_transcribed", role="candidate", text=user_text)
-                                await self.event_queue.put({"type": "transcript", "role": "candidate", "text": user_text, "timestamp": timestamp})
-                                logger.debug("Session %s user turn complete: %s", self.session_id, user_text[:80])
-                                # Drive interview question logic from transcribed audio
-                                word_count = len(user_text.split())
-                                self.last_answer_word_count = word_count
-                                if self.awaiting_answer and not self.closing_dispatched:
-                                    self.awaiting_answer = False
-                                    if await self._should_send_followup(user_text, word_count):
-                                        await self._send_followup_question(user_text)
-                                    else:
-                                        await self._send_next_question()
+                                # Deduplicate
+                                if not any(t["role"] == "candidate" and t["text"] == user_text for t in self.transcript_items[-3:]):
+                                    self.transcript_items.append({"role": "candidate", "text": user_text, "timestamp": timestamp})
+                                    self._record_timeline(event_type="candidate_response_transcribed", role="candidate", text=user_text)
+                                    await self.event_queue.put({"type": "transcript", "role": "candidate", "text": user_text, "timestamp": timestamp})
+                                    logger.debug("Session %s user speech flushed (awaiting candidate_done): %s", self.session_id, user_text[:80])
+                                # Track last spoken answer for evaluation
+                                self.last_answer_word_count = len(user_text.split())
 
                     # 3. Fallback: plain text (older SDK compat — buffer and flush immediately)
                     elif getattr(response, "text", None) and response.text.strip():
@@ -718,6 +760,49 @@ class VoiceInterviewSession:
         return "\n".join(segments)
 
     def _build_qa_pairs(self) -> Tuple[List[str], List[str]]:
+        """
+        Pair each candidate answer with the scripted question it was actually answering.
+
+        self.questions is authoritative. Gemini sometimes goes off-script and asks an
+        unscripted question; attributing an answer to "whatever the interviewer said
+        last" would pair it with that stray question and make the evaluation penalise
+        the candidate for not answering something they were never asked.
+        """
+        if not self.questions:
+            return self._build_qa_pairs_from_transcript()
+
+        answers_by_question: Dict[int, List[str]] = {}
+        current_index: Optional[int] = None
+
+        for item in self.transcript_items:
+            role = item.get("role")
+            text = (item.get("text") or "").strip()
+            if not text:
+                continue
+            if role == "assistant":
+                for index, question in enumerate(self.questions):
+                    if not _is_near_duplicate(text, question):
+                        continue
+                    # Questions are dispatched in order, so only ever move forward.
+                    # Gemini's transcription can lag and re-speak an earlier question
+                    # after the next one was already asked; without this guard the
+                    # following answer gets filed under the wrong question.
+                    if current_index is None or index > current_index:
+                        current_index = index
+                    break
+            elif role == "candidate" and current_index is not None:
+                answers_by_question.setdefault(current_index, []).append(text)
+
+        questions: List[str] = []
+        answers: List[str] = []
+        for index in sorted(answers_by_question):
+            questions.append(self.questions[index])
+            answers.append(" ".join(answers_by_question[index]))
+
+        return questions, answers
+
+    def _build_qa_pairs_from_transcript(self) -> Tuple[List[str], List[str]]:
+        """Fallback pairing when no scripted questions are available."""
         questions: List[str] = []
         answers: List[str] = []
         pending_question: Optional[str] = None
@@ -878,14 +963,17 @@ class VoiceInterviewSessionManager:
     ) -> VoiceInterviewSession:
         session = VoiceInterviewSession(context, max_questions=max_questions)
 
-        # Set default questions immediately — skip slow AI generation so Gemini connects ASAP.
-        # This is the single biggest startup-time win (saves 3-5 seconds of MegaLLM latency).
-        job_role = context.job_title or "this position"
-        session.questions = [
-            f"Please introduce yourself and tell me what motivated you to apply for {job_role}.",
-            "Walk me through a challenging project or situation you faced professionally and how you handled it.",
-            "What do you consider your greatest strengths, and how would they contribute to this role?",
-        ][:session.max_questions]
+        # Generate 3 questions tailored to JD + candidate resume via Gemini
+        try:
+            await session.prepare()
+        except Exception as exc:
+            logger.warning("Question generation failed, using defaults: %s", exc)
+            job_role = context.job_title or "this position"
+            session.questions = [
+                f"Please introduce yourself and tell me what motivated you to apply for {job_role}.",
+                "Walk me through a challenging project or situation you faced professionally and how you handled it.",
+                "What do you consider your greatest strengths, and how would they contribute to this role?",
+            ][:session.max_questions]
 
         try:
             await session.connect()

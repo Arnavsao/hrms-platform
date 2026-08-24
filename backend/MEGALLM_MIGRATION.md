@@ -1,5 +1,14 @@
 # MegaLLM Migration Guide
 
+> **SUPERSEDED — kept for history only. Do not follow this guide.**
+>
+> The platform has since moved **back to Google Gemini** for all AI work:
+> `gemini-2.5-flash` for text (resume parsing, matching, screening, scoring) and
+> Gemini Live for voice interviews, both via the `google-genai` SDK and a single
+> `GEMINI_API_KEY`. MegaLLM is no longer used anywhere in the codebase;
+> `MEGALLM_API_KEY` survives only as an ignored back-compat config field.
+> See `README.md` and `backend/env.example` for current setup.
+
 ## Overview
 
 The HRMS platform has been migrated from Google Gemini API to MegaLLM API, which provides access to GPT-5 and 70+ other AI models through a unified interface.

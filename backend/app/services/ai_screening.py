@@ -8,7 +8,7 @@ logger = get_logger(__name__)
 
 async def generate_screening_questions(job_role: str, candidate_profile: Dict) -> List[str]:
     """
-    Generate adaptive screening questions based on job and candidate using MegaLLM.
+    Generate adaptive screening questions based on job and candidate using Gemini.
 
     Args:
         job_role: The job role/position being screened for
@@ -64,7 +64,7 @@ Return ONLY a JSON array of 3 question strings, no other text.
 Example format: ["Question 1?", "Question 2?", "Question 3?"]
 """
 
-        # Generate JSON response using MegaLLM
+        # Generate JSON response using Gemini
         questions = await generate_json_response(
             prompt=prompt,
             model=settings.AI_MODEL,
@@ -93,7 +93,7 @@ Example format: ["Question 1?", "Question 2?", "Question 3?"]
 
 async def evaluate_screening_responses(questions: List[str], responses: List[str]) -> ScreeningEvaluation:
     """
-    Evaluate candidate's responses using MegaLLM AI.
+    Evaluate candidate's responses using Gemini.
 
     Args:
         questions: List of screening questions asked
@@ -127,7 +127,7 @@ async def evaluate_screening_responses(questions: List[str], responses: List[str
         6. weaknesses: List of areas for improvement
         """
 
-        # Generate JSON evaluation using MegaLLM
+        # Generate JSON evaluation using Gemini
         evaluation_data = await generate_json_response(
             prompt=prompt,
             model=settings.AI_MODEL,
