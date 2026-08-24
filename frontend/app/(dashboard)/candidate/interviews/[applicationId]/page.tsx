@@ -18,20 +18,23 @@ import {
   RefreshCw,
   StopCircle,
   Volume2,
+  ArrowRight,
 } from 'lucide-react';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-// Gemini Live sends 24kHz PCM; we capture mic at 16kHz (what Gemini Live expects for input)
 const PLAYBACK_SAMPLE_RATE = 24000;
 const CAPTURE_SAMPLE_RATE = 16000;
-const CAPTURE_BUFFER_SIZE = 2048; // 2048 @ 48kHz = ~43ms latency (was 4096 = 85ms)
+const CAPTURE_BUFFER_SIZE = 2048;
+const ANSWER_TIMER_SECONDS = 180; // 3 minutes
+const TOTAL_QUESTIONS = 3;
 
 interface TranscriptEntry {
   id: string;
   role: 'assistant' | 'candidate';
   text: string;
   timestamp: string;
+  isPartial?: boolean; // live partial speech-to-text
 }
 
 interface ApplicationDetails {
@@ -48,7 +51,6 @@ function resolveWebSocketUrl(sessionId: string) {
   return `${wsBase.replace(/\/$/, '')}/api/voice-interviews/ws/${sessionId}`;
 }
 
-/** Convert Float32 samples → Int16 PCM bytes */
 function float32ToInt16(float32: Float32Array): Int16Array {
   const int16 = new Int16Array(float32.length);
   for (let i = 0; i < float32.length; i++) {
@@ -58,19 +60,15 @@ function float32ToInt16(float32: Float32Array): Int16Array {
   return int16;
 }
 
-/** Downsample a Float32Array from sourceSR to targetSR */
 function downsample(buffer: Float32Array, sourceSR: number, targetSR: number): Float32Array {
   if (sourceSR === targetSR) return buffer;
   const ratio = sourceSR / targetSR;
   const outLength = Math.round(buffer.length / ratio);
   const out = new Float32Array(outLength);
-  for (let i = 0; i < outLength; i++) {
-    out[i] = buffer[Math.round(i * ratio)];
-  }
+  for (let i = 0; i < outLength; i++) out[i] = buffer[Math.round(i * ratio)];
   return out;
 }
 
-/** Encode Int16Array to base64 */
 function int16ToBase64(int16: Int16Array): string {
   const bytes = new Uint8Array(int16.buffer);
   let binary = '';
@@ -94,8 +92,11 @@ export default function CandidateVoiceInterviewPage({ params }: CandidateIntervi
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const [isMicActive, setIsMicActive] = useState(false);
 
-  // Per-question answer timer (3 minutes = 180 seconds)
-  const ANSWER_TIMER_SECONDS = 180;
+  // Question progress
+  const [currentQuestion, setCurrentQuestion] = useState(0); // 1-indexed when active
+  const [isAnswering, setIsAnswering] = useState(false); // true = AI finished speaking, candidate should answer
+
+  // Answer timer
   const [answerTimerSecs, setAnswerTimerSecs] = useState<number | null>(null);
   const answerTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -127,7 +128,6 @@ export default function CandidateVoiceInterviewPage({ params }: CandidateIntervi
   const [manualInput, setManualInput] = useState('');
   const [finalReport, setFinalReport] = useState<VoiceInterviewFinalizeResponse | null>(null);
 
-  // Refs — stable across renders
   const websocketRef = useRef<WebSocket | null>(null);
   const isInterviewActiveRef = useRef(false);
   const finalizeTriggeredRef = useRef(false);
@@ -142,7 +142,6 @@ export default function CandidateVoiceInterviewPage({ params }: CandidateIntervi
   const processorRef = useRef<ScriptProcessorNode | null>(null);
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
 
-  // Transcript scroll
   const transcriptEndRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -163,10 +162,7 @@ export default function CandidateVoiceInterviewPage({ params }: CandidateIntervi
       playbackCtxRef.current = new AudioContext({ sampleRate: PLAYBACK_SAMPLE_RATE });
       playbackCursorRef.current = playbackCtxRef.current.currentTime;
     }
-    // Resume if suspended (browser autoplay policy)
-    if (playbackCtxRef.current.state === 'suspended') {
-      playbackCtxRef.current.resume();
-    }
+    if (playbackCtxRef.current.state === 'suspended') playbackCtxRef.current.resume();
     return playbackCtxRef.current;
   }, []);
 
@@ -176,17 +172,14 @@ export default function CandidateVoiceInterviewPage({ params }: CandidateIntervi
       const binary = atob(base64Data);
       const bytes = new Uint8Array(binary.length);
       for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-
       const int16 = new Int16Array(bytes.buffer);
       const float32 = new Float32Array(int16.length);
       for (let i = 0; i < int16.length; i++) float32[i] = int16[i] / 32768;
-
       const buf = ctx.createBuffer(1, float32.length, sampleRate);
       buf.copyToChannel(float32, 0);
       const src = ctx.createBufferSource();
       src.buffer = buf;
       src.connect(ctx.destination);
-
       const startAt = Math.max(ctx.currentTime, playbackCursorRef.current);
       src.start(startAt);
       playbackCursorRef.current = startAt + buf.duration;
@@ -198,67 +191,41 @@ export default function CandidateVoiceInterviewPage({ params }: CandidateIntervi
   // ─── Capture ────────────────────────────────────────────────────────────────
 
   const stopMicCapture = useCallback(() => {
-    if (processorRef.current) {
-      processorRef.current.disconnect();
-      processorRef.current.onaudioprocess = null;
-      processorRef.current = null;
-    }
-    if (sourceRef.current) {
-      sourceRef.current.disconnect();
-      sourceRef.current = null;
-    }
-    if (micStreamRef.current) {
-      micStreamRef.current.getTracks().forEach((t) => t.stop());
-      micStreamRef.current = null;
-    }
-    if (captureCtxRef.current) {
-      captureCtxRef.current.close();
-      captureCtxRef.current = null;
-    }
+    processorRef.current?.disconnect();
+    if (processorRef.current) { processorRef.current.onaudioprocess = null; processorRef.current = null; }
+    sourceRef.current?.disconnect();
+    sourceRef.current = null;
+    micStreamRef.current?.getTracks().forEach(t => t.stop());
+    micStreamRef.current = null;
+    captureCtxRef.current?.close();
+    captureCtxRef.current = null;
     setIsMicActive(false);
   }, []);
 
   const startMicCapture = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          channelCount: 1,
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        },
+        audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       });
       micStreamRef.current = stream;
-
       const ctx = new AudioContext();
       captureCtxRef.current = ctx;
-
       const source = ctx.createMediaStreamSource(stream);
       sourceRef.current = source;
-
-      // ScriptProcessor captures raw float32 samples
       const processor = ctx.createScriptProcessor(CAPTURE_BUFFER_SIZE, 1, 1);
       processorRef.current = processor;
-
       processor.onaudioprocess = (e) => {
         const ws = websocketRef.current;
         if (!ws || ws.readyState !== WebSocket.OPEN) return;
-
         const float32 = e.inputBuffer.getChannelData(0);
-        // Downsample from browser's native sample rate to 16kHz for Gemini
         const downsampled = downsample(float32, ctx.sampleRate, CAPTURE_SAMPLE_RATE);
         const int16 = float32ToInt16(downsampled);
-        const b64 = int16ToBase64(int16);
-
-        ws.send(JSON.stringify({ type: 'audio_chunk', data: b64 }));
+        ws.send(JSON.stringify({ type: 'audio_chunk', data: int16ToBase64(int16) }));
       };
-
       source.connect(processor);
-      processor.connect(ctx.destination); // must connect to destination to fire onaudioprocess
+      processor.connect(ctx.destination);
       setIsMicActive(true);
-      console.log('[Audio] Mic capture started, native SR:', ctx.sampleRate);
     } catch (err: any) {
-      console.error('[Audio] Failed to start mic capture:', err);
       const msg = err?.name === 'NotAllowedError'
         ? 'Microphone access denied. Please allow microphone access and try again.'
         : `Microphone error: ${err?.message || err}`;
@@ -268,21 +235,8 @@ export default function CandidateVoiceInterviewPage({ params }: CandidateIntervi
 
   // ─── WebSocket ──────────────────────────────────────────────────────────────
 
-  const appendTranscript = useCallback((entry: TranscriptEntry) => {
-    setTranscript((prev) => [...prev, entry]);
-  }, []);
-
-  const sendManualTurn = useCallback((text: string) => {
-    const ws = websocketRef.current;
-    if (!ws || ws.readyState !== WebSocket.OPEN || !text.trim()) return;
-    ws.send(JSON.stringify({ type: 'candidate_turn', text: text.trim(), is_final: true, source: 'manual' }));
-  }, []);
-
   const closeWebSocket = useCallback(() => {
-    if (websocketRef.current) {
-      websocketRef.current.close();
-      websocketRef.current = null;
-    }
+    if (websocketRef.current) { websocketRef.current.close(); websocketRef.current = null; }
   }, []);
 
   const resetSessionState = useCallback(() => {
@@ -293,33 +247,25 @@ export default function CandidateVoiceInterviewPage({ params }: CandidateIntervi
     isInterviewActiveRef.current = false;
     setIsSessionLoading(false);
     setSessionId(null);
+    setCurrentQuestion(0);
+    setIsAnswering(false);
     finalizeTriggeredRef.current = false;
   }, [closeWebSocket, stopMicCapture, clearAnswerTimer]);
 
-  useEffect(() => {
-    return () => {
-      resetSessionState();
-      playbackCtxRef.current?.close();
-    };
-  }, [resetSessionState]);
-
+  useEffect(() => { return () => { resetSessionState(); playbackCtxRef.current?.close(); }; }, [resetSessionState]);
   useEffect(() => { isInterviewActiveRef.current = isInterviewActive; }, [isInterviewActive]);
 
   const finalizeInterview = useCallback(async (mode: 'auto' | 'manual' = 'manual') => {
     if (!sessionId || isFinalizing) return;
     if (mode === 'auto' && finalizeTriggeredRef.current) return;
-
     finalizeTriggeredRef.current = true;
+    clearAnswerTimer();
     stopMicCapture();
-
     const ws = websocketRef.current;
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: 'end_session', reason: mode }));
-    }
-
+    if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'end_session', reason: mode }));
     setIsFinalizing(true);
+    setIsAnswering(false);
     setInfoMessage(mode === 'auto' ? 'Wrapping up your interview...' : 'Generating interview summary...');
-
     try {
       const report = await api.finalizeVoiceInterviewSession(sessionId);
       setFinalReport(report);
@@ -334,15 +280,36 @@ export default function CandidateVoiceInterviewPage({ params }: CandidateIntervi
       setIsInterviewActive(false);
       isInterviewActiveRef.current = false;
     }
-  }, [closeWebSocket, isFinalizing, sessionId, stopMicCapture]);
+  }, [closeWebSocket, clearAnswerTimer, isFinalizing, sessionId, stopMicCapture]);
+
+  // Advance to next question (save current answer)
+  const handleSaveAndNext = useCallback(() => {
+    clearAnswerTimer();
+    setIsAnswering(false);
+    const ws = websocketRef.current;
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'candidate_done' }));
+    }
+  }, [clearAnswerTimer]);
 
   const handleWebSocketMessage = useCallback((event: MessageEvent) => {
     try {
       const data = JSON.parse(event.data);
       switch (data.type) {
         case 'status': {
-          if (data.message === 'connected') setInfoMessage('Connected. Preparing the first question...');
-          if (data.message === 'session_started') setInfoMessage('Interview started — speak clearly when ready.');
+          if (data.message === 'connected') setInfoMessage('Connected. Preparing your interview questions...');
+          if (data.message === 'session_started') {
+            setInfoMessage('Interview started — listen for the first question.');
+            setCurrentQuestion(1);
+          }
+          if (data.message === 'question_complete') {
+            // AI finished speaking the question → start the answer timer
+            setIsAnswering(true);
+            startAnswerTimer(() => {
+              // Timer expired — auto-save and advance
+              handleSaveAndNext();
+            });
+          }
           if (data.message === 'finalize_ready') {
             setInfoMessage('All questions complete. Wrapping up...');
             if (!finalizeTriggeredRef.current) finalizeInterview('auto');
@@ -353,26 +320,43 @@ export default function CandidateVoiceInterviewPage({ params }: CandidateIntervi
           break;
         }
         case 'transcript': {
-          const entry: TranscriptEntry = {
-            id: `${data.role}-${Date.now()}-${Math.random()}`,
-            role: data.role,
-            text: data.text,
-            timestamp: data.timestamp || new Date().toISOString(),
-          };
-          appendTranscript(entry);
-          // When AI finishes speaking a question, start the candidate answer timer
-          if (data.role === 'assistant') {
-            startAnswerTimer(() => {
-              // Timer expired → auto-advance to next question via candidate_done
-              const ws = websocketRef.current;
-              if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({ type: 'candidate_done' }));
-              }
-            });
-          } else {
-            // Candidate answered — stop timer
-            clearAnswerTimer();
+          // Final committed transcript entry
+          // Remove any existing partial entry for this role, then add the committed one
+          setTranscript(prev => {
+            const withoutPartial = prev.filter(e => !(e.isPartial && e.role === data.role));
+            return [...withoutPartial, {
+              id: `${data.role}-${Date.now()}-${Math.random()}`,
+              role: data.role,
+              text: data.text,
+              timestamp: data.timestamp || new Date().toISOString(),
+            }];
+          });
+          // When candidate transcript is committed, stop timer and clear answering state
+          // (but don't advance — that's only on candidate_done)
+          if (data.role === 'candidate') {
+            // Keep timer running — candidate may still be speaking
           }
+          // When next question (assistant) arrives, update question counter
+          if (data.role === 'assistant') {
+            setIsAnswering(false);
+            clearAnswerTimer();
+            setCurrentQuestion(q => Math.min(q + (q > 0 ? 0 : 1), TOTAL_QUESTIONS));
+          }
+          break;
+        }
+        case 'transcript_partial': {
+          // Real-time partial speech-to-text — update or add a partial candidate entry
+          setTranscript(prev => {
+            const withoutPartial = prev.filter(e => !(e.isPartial && e.role === 'candidate'));
+            if (!data.text?.trim()) return withoutPartial;
+            return [...withoutPartial, {
+              id: 'partial-candidate',
+              role: 'candidate',
+              text: data.text,
+              timestamp: new Date().toISOString(),
+              isPartial: true,
+            }];
+          });
           break;
         }
         case 'audio_chunk': {
@@ -388,26 +372,24 @@ export default function CandidateVoiceInterviewPage({ params }: CandidateIntervi
     } catch (err) {
       console.error('Failed to parse websocket payload', err);
     }
-  }, [appendTranscript, finalizeInterview, playAudioChunk]);
+  }, [clearAnswerTimer, finalizeInterview, handleSaveAndNext, playAudioChunk, startAnswerTimer]);
 
   const handleStartInterview = useCallback(async () => {
     if (isSessionLoading || isInterviewActive) return;
-
     setError(null);
     setInfoMessage(null);
     setIsSessionLoading(true);
     setTranscript([]);
     setFinalReport(null);
+    setCurrentQuestion(0);
+    setIsAnswering(false);
     finalizeTriggeredRef.current = false;
     closeWebSocket();
-
     try {
       const response = await api.createVoiceInterviewSession(params.applicationId);
       setSessionId(response.session_id);
-
       const wsUrl = resolveWebSocketUrl(response.session_id);
       const socket = new WebSocket(wsUrl);
-
       socket.onopen = () => setInfoMessage('Connected — starting microphone...');
       socket.onmessage = handleWebSocketMessage;
       socket.onerror = () => setError('Connection to voice interviewer dropped.');
@@ -417,15 +399,11 @@ export default function CandidateVoiceInterviewPage({ params }: CandidateIntervi
         websocketRef.current = null;
       };
       websocketRef.current = socket;
-
       setIsInterviewActive(true);
       isInterviewActiveRef.current = true;
-
-      // Start mic AFTER WebSocket is assigned so onaudioprocess can find it
       await startMicCapture();
       setInfoMessage('Microphone active. The interviewer will begin shortly.');
     } catch (err: any) {
-      console.error('Failed to start voice interview', err);
       setError(err?.response?.data?.detail || err?.message || 'Unable to start voice interview.');
       resetSessionState();
     } finally {
@@ -435,22 +413,14 @@ export default function CandidateVoiceInterviewPage({ params }: CandidateIntervi
 
   const handleSendManualInput = useCallback(() => {
     if (!manualInput.trim()) return;
-    sendManualTurn(manualInput);
-    appendTranscript({ id: `candidate-${Date.now()}`, role: 'candidate', text: manualInput.trim(), timestamp: new Date().toISOString() });
-    setManualInput('');
-  }, [appendTranscript, manualInput, sendManualTurn]);
-
-  const handleEndAnswerEarly = useCallback(() => {
-    clearAnswerTimer();
     const ws = websocketRef.current;
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: 'candidate_done' }));
-    }
-  }, [clearAnswerTimer]);
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify({ type: 'candidate_turn', text: manualInput.trim(), is_final: true, source: 'manual' }));
+    setTranscript(prev => [...prev, { id: `candidate-${Date.now()}`, role: 'candidate', text: manualInput.trim(), timestamp: new Date().toISOString() }]);
+    setManualInput('');
+  }, [manualInput]);
 
-  const jobTitle = useMemo(() => {
-    return application?.jobs?.title || application?.job?.title || 'Voice Interview';
-  }, [application]);
+  const jobTitle = useMemo(() => application?.jobs?.title || application?.job?.title || 'Voice Interview', [application]);
 
   if (isLoadingApplication) {
     return (
@@ -472,7 +442,6 @@ export default function CandidateVoiceInterviewPage({ params }: CandidateIntervi
     );
   }
 
-  // Locked state: recruiter has explicitly revoked interview access
   if (application.interview_allowed === false) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-6 p-6 text-center">
@@ -511,17 +480,41 @@ export default function CandidateVoiceInterviewPage({ params }: CandidateIntervi
         </Alert>
       )}
 
+      {/* Question progress bar */}
+      {isInterviewActive && currentQuestion > 0 && (
+        <div className="flex items-center gap-3">
+          {Array.from({ length: TOTAL_QUESTIONS }, (_, i) => (
+            <div key={i} className="flex items-center gap-2 flex-1">
+              <div className={`h-2 flex-1 rounded-full transition-all ${
+                i + 1 < currentQuestion ? 'bg-green-500' :
+                i + 1 === currentQuestion ? 'bg-blue-500' :
+                'bg-gray-200'
+              }`} />
+              <span className={`text-xs font-medium ${i + 1 === currentQuestion ? 'text-blue-600' : 'text-gray-400'}`}>
+                Q{i + 1}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+        {/* Transcript panel */}
         <Card className="lg:col-span-8">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle>Conversation</CardTitle>
-              <p className="text-sm text-muted-foreground">Speak naturally — the AI interviewer replies in real-time.</p>
+              <p className="text-sm text-muted-foreground">Speak naturally — your speech appears in real-time below.</p>
             </div>
             <div className="flex items-center gap-2">
               {isMicActive && (
                 <Badge variant="default" className="flex items-center gap-1 bg-red-500 text-white animate-pulse">
                   <Mic className="h-3 w-3" /> Live
+                </Badge>
+              )}
+              {isAnswering && (
+                <Badge variant="default" className="flex items-center gap-1 bg-amber-500 text-white">
+                  Your turn
                 </Badge>
               )}
               <Badge variant={isInterviewActive ? 'default' : 'outline'} className="flex items-center gap-1">
@@ -542,10 +535,23 @@ export default function CandidateVoiceInterviewPage({ params }: CandidateIntervi
                 {transcript.map((item) => (
                   <div
                     key={item.id}
-                    className={`rounded-md p-3 shadow-sm ${item.role === 'assistant' ? 'bg-background' : 'bg-primary/10 ml-8'}`}
+                    className={`rounded-md p-3 shadow-sm transition-all ${
+                      item.role === 'assistant'
+                        ? 'bg-background border border-border'
+                        : item.isPartial
+                          ? 'bg-blue-50 ml-8 border border-blue-200 opacity-80'
+                          : 'bg-primary/10 ml-8'
+                    }`}
                   >
-                    <p className="text-xs uppercase text-muted-foreground mb-1">
+                    <p className="text-xs uppercase text-muted-foreground mb-1 flex items-center gap-1">
                       {item.role === 'assistant' ? 'AI Interviewer' : 'You'}
+                      {item.isPartial && (
+                        <span className="inline-flex gap-0.5">
+                          <span className="animate-bounce h-1 w-1 rounded-full bg-blue-400" style={{ animationDelay: '0ms' }} />
+                          <span className="animate-bounce h-1 w-1 rounded-full bg-blue-400" style={{ animationDelay: '150ms' }} />
+                          <span className="animate-bounce h-1 w-1 rounded-full bg-blue-400" style={{ animationDelay: '300ms' }} />
+                        </span>
+                      )}
                     </p>
                     <p className="text-sm text-foreground">{item.text}</p>
                   </div>
@@ -557,7 +563,7 @@ export default function CandidateVoiceInterviewPage({ params }: CandidateIntervi
             {/* Manual fallback input */}
             <div className="space-y-2">
               <p className="text-sm font-medium text-muted-foreground">
-                Manual Response <span className="text-xs">(use if microphone is unavailable)</span>
+                Type your answer <span className="text-xs">(if microphone is unavailable)</span>
               </p>
               <Textarea
                 placeholder="Type your answer here..."
@@ -585,12 +591,15 @@ export default function CandidateVoiceInterviewPage({ params }: CandidateIntervi
                 <><Mic className="mr-2 h-4 w-4" /> Start Interview</>
               )}
             </Button>
-            {/* End Answer Early — signals candidate is done speaking, advance to next Q */}
-            {isInterviewActive && answerTimerSecs !== null && (
-              <Button variant="secondary" onClick={handleEndAnswerEarly}>
-                <CheckCircle2 className="mr-2 h-4 w-4" /> End Answer Early
+
+            {/* Save & move to next question — only shown when in answering window */}
+            {isInterviewActive && isAnswering && (
+              <Button variant="secondary" onClick={handleSaveAndNext} className="bg-green-100 hover:bg-green-200 text-green-800 border border-green-300">
+                <ArrowRight className="mr-2 h-4 w-4" />
+                Save &amp; Next Question
               </Button>
             )}
+
             <Button onClick={() => finalizeInterview('manual')} variant="destructive" disabled={!isInterviewActive || isFinalizing}>
               {isFinalizing ? (
                 <><RefreshCw className="mr-2 h-4 w-4 animate-spin" /> Finalizing</>
@@ -601,34 +610,45 @@ export default function CandidateVoiceInterviewPage({ params }: CandidateIntervi
           </CardFooter>
         </Card>
 
+        {/* Status sidebar */}
         <Card className="lg:col-span-4">
           <CardHeader><CardTitle>Interview Status</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2 text-sm">
               <p><strong>Role:</strong> {jobTitle}</p>
               <p><strong>Status:</strong> {isInterviewActive ? 'In progress' : finalReport ? 'Completed' : 'Not started'}</p>
+              {currentQuestion > 0 && (
+                <p><strong>Question:</strong> {currentQuestion} of {TOTAL_QUESTIONS}</p>
+              )}
               {isMicActive && (
                 <p className="flex items-center gap-1 text-green-600">
                   <Mic className="h-3 w-3" /> Microphone active
                 </p>
               )}
+              {isAnswering && (
+                <p className="flex items-center gap-1 text-amber-600 font-medium">
+                  <span className="inline-block h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+                  Listening for your answer...
+                </p>
+              )}
             </div>
 
             <div className="rounded-md bg-muted/40 p-3 text-sm text-muted-foreground">
-              <p className="font-medium mb-1">Tips</p>
+              <p className="font-medium mb-1">How it works</p>
               <ul className="list-outside list-disc space-y-1 pl-4">
                 <li>Allow microphone access when prompted.</li>
-                <li>Speak clearly and wait for the AI to finish before responding.</li>
-                <li>Click &quot;End Answer Early&quot; when done — or wait for the timer.</li>
-                <li>Use Manual Response below if your mic isn&apos;t working.</li>
+                <li>Wait for the AI to finish the question — the timer starts automatically.</li>
+                <li>You have <strong>3 minutes</strong> per answer.</li>
+                <li>Click <strong>Save &amp; Next Question</strong> anytime to move on early.</li>
+                <li>Your speech appears in real-time as you speak.</li>
               </ul>
             </div>
 
-            {/* Countdown Timer */}
+            {/* Answer countdown timer */}
             {answerTimerSecs !== null && (
               <div className="flex flex-col items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 p-4">
                 <p className="text-xs font-medium text-amber-700 uppercase tracking-wide">Answer Timer</p>
-                <div className="relative flex h-20 w-20 items-center justify-center">
+                <div className="relative flex h-24 w-24 items-center justify-center">
                   <svg className="absolute inset-0" viewBox="0 0 80 80" fill="none">
                     <circle cx="40" cy="40" r="36" stroke="#fde68a" strokeWidth="6" />
                     <circle
@@ -642,11 +662,16 @@ export default function CandidateVoiceInterviewPage({ params }: CandidateIntervi
                       style={{ transition: 'stroke-dashoffset 1s linear, stroke 0.3s' }}
                     />
                   </svg>
-                  <span className={`text-lg font-bold tabular-nums ${answerTimerSecs <= 30 ? 'text-red-600' : 'text-amber-800'}`}>
+                  <span className={`text-xl font-bold tabular-nums ${answerTimerSecs <= 30 ? 'text-red-600' : 'text-amber-800'}`}>
                     {String(Math.floor(answerTimerSecs / 60)).padStart(2, '0')}:{String(answerTimerSecs % 60).padStart(2, '0')}
                   </span>
                 </div>
-                <p className="text-xs text-amber-600">Time remaining to answer</p>
+                <p className="text-xs text-amber-600 text-center">
+                  {answerTimerSecs <= 30 ? '⚠️ Wrapping up soon...' : 'Time remaining to answer'}
+                </p>
+                <Button size="sm" variant="outline" onClick={handleSaveAndNext} className="w-full text-green-700 border-green-400 hover:bg-green-50">
+                  <ArrowRight className="mr-1 h-3 w-3" /> Save &amp; Next Question
+                </Button>
               </div>
             )}
 

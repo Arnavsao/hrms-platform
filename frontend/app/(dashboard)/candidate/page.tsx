@@ -22,6 +22,9 @@ import {
   Mic
 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
+import { Pagination } from '@/components/ui/pagination';
+
+const APPS_PER_PAGE = 3;
 
 interface Application {
   id: string;
@@ -45,6 +48,7 @@ interface CandidateStats {
 
 export default function CandidateDashboard() {
   const [applications, setApplications] = useState<Application[]>([]);
+  const [appPage, setAppPage] = useState(1);
   const [stats, setStats] = useState<CandidateStats>({
     totalApplications: 0,
     averageFitScore: 0,
@@ -294,7 +298,7 @@ export default function CandidateDashboard() {
               </div>
             ) : (
               <div className="space-y-4">
-                {applications.map((application) => (
+                {applications.slice((appPage - 1) * APPS_PER_PAGE, appPage * APPS_PER_PAGE).map((application) => (
                   <Card key={application.id} className="hover:shadow-md transition-shadow">
                     <CardContent className="p-6">
                       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
@@ -387,6 +391,13 @@ export default function CandidateDashboard() {
                     </CardContent>
                   </Card>
                 ))}
+                <Pagination
+                  currentPage={appPage}
+                  totalPages={Math.ceil(applications.length / APPS_PER_PAGE)}
+                  onPageChange={setAppPage}
+                  totalItems={applications.length}
+                  itemsPerPage={APPS_PER_PAGE}
+                />
               </div>
             )}
           </div>

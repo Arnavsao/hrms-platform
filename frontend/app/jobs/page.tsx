@@ -30,6 +30,9 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
+import { Pagination } from '@/components/ui/pagination';
+
+const JOBS_PER_PAGE = 7;
 
 export default function JobsPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -37,6 +40,7 @@ export default function JobsPage() {
   const [appliedJobIds, setAppliedJobIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [jobPage, setJobPage] = useState(1);
   const { session } = useAuth();
   const router = useRouter();
 
@@ -78,6 +82,7 @@ export default function JobsPage() {
       job.description?.toLowerCase().includes(searchTerm.toLowerCase())
     );
     setFilteredJobs(filtered);
+    setJobPage(1);
   }, [searchTerm, jobs]);
 
   const handleDeleteJob = async (jobId: string) => {
@@ -282,23 +287,34 @@ export default function JobsPage() {
         </Card>
 
         {/* Jobs Table */}
-        <ResponsiveTable
-          columns={columns}
-          data={filteredJobs}
-          actions={actions}
-          emptyState={{
-            title: filteredJobs.length === 0 && searchTerm ? 'No jobs found' : 'No jobs available',
-            description: filteredJobs.length === 0 && searchTerm 
-              ? 'Try adjusting your search criteria'
-              : isRecruiter 
-                ? 'Get started by creating your first job posting'
-                : 'Check back later for new opportunities',
-            action: isRecruiter ? {
-              label: 'Create Job',
-              onClick: () => router.push('/jobs/create'),
-            } : undefined,
-          }}
-        />
+        <div>
+          <ResponsiveTable
+            columns={columns}
+            data={filteredJobs.slice((jobPage - 1) * JOBS_PER_PAGE, jobPage * JOBS_PER_PAGE)}
+            actions={actions}
+            emptyState={{
+              title: filteredJobs.length === 0 && searchTerm ? 'No jobs found' : 'No jobs available',
+              description: filteredJobs.length === 0 && searchTerm
+                ? 'Try adjusting your search criteria'
+                : isRecruiter
+                  ? 'Get started by creating your first job posting'
+                  : 'Check back later for new opportunities',
+              action: isRecruiter ? {
+                label: 'Create Job',
+                onClick: () => router.push('/jobs/create'),
+              } : undefined,
+            }}
+          />
+          <div className="mt-4 px-1">
+            <Pagination
+              currentPage={jobPage}
+              totalPages={Math.ceil(filteredJobs.length / JOBS_PER_PAGE)}
+              onPageChange={setJobPage}
+              totalItems={filteredJobs.length}
+              itemsPerPage={JOBS_PER_PAGE}
+            />
+          </div>
+        </div>
 
         {/* Stats */}
         {filteredJobs.length > 0 && (

@@ -7,7 +7,7 @@ import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Pagination } from '@/components/ui/pagination';
 import {
   Eye,
   CheckCircle,
@@ -16,9 +16,13 @@ import {
   TrendingUp,
   Users,
   Briefcase,
-  AlertCircle
+  AlertCircle,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
+
+const GROUPS_PER_PAGE = 5;
 
 interface Application {
   id: string;
@@ -42,6 +46,9 @@ export default function ApplicationsPage() {
   const [applications, setApplications] = useState<Application[]>([]);
   const [jobGroups, setJobGroups] = useState<JobGroup[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [groupPage, setGroupPage] = useState(1);
+  // Track which job groups are expanded (open by default: none)
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const { session } = useAuth();
   const router = useRouter();
 
@@ -54,14 +61,13 @@ export default function ApplicationsPage() {
         const data = await api.listApplications(null);
         setApplications(data);
 
-        // Group applications by job
         const grouped = data.reduce((acc: { [key: string]: JobGroup }, app: Application) => {
           const jobId = app.job_id;
           if (!acc[jobId]) {
             acc[jobId] = {
               job_id: jobId,
               job_title: app.job_title || '',
-              applications: []
+              applications: [],
             };
           }
           acc[jobId].applications.push(app);
@@ -70,7 +76,7 @@ export default function ApplicationsPage() {
 
         setJobGroups(Object.values(grouped));
       } catch (error) {
-        console.error("Failed to fetch applications", error);
+        console.error('Failed to fetch applications', error);
       } finally {
         setIsLoading(false);
       }
@@ -80,6 +86,18 @@ export default function ApplicationsPage() {
       fetchApplications();
     }
   }, [isRecruiter]);
+
+  const toggleGroup = (jobId: string) => {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(jobId)) {
+        next.delete(jobId);
+      } else {
+        next.add(jobId);
+      }
+      return next;
+    });
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -106,15 +124,9 @@ export default function ApplicationsPage() {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <div className="text-center">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                Access Denied
-              </h3>
-              <p className="text-gray-500 mb-4">
-                You don&apos;t have permission to view applications.
-              </p>
-              <Button onClick={() => router.push('/')}>
-                Go to Dashboard
-              </Button>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Access Denied</h3>
+              <p className="text-gray-500 mb-4">You don&apos;t have permission to view applications.</p>
+              <Button onClick={() => router.push('/')}>Go to Dashboard</Button>
             </div>
           </CardContent>
         </Card>
@@ -134,6 +146,11 @@ export default function ApplicationsPage() {
       </div>
     );
   }
+
+  const pagedGroups = jobGroups.slice(
+    (groupPage - 1) * GROUPS_PER_PAGE,
+    groupPage * GROUPS_PER_PAGE
+  );
 
   return (
     <div className="h-full bg-gray-50">
@@ -187,7 +204,9 @@ export default function ApplicationsPage() {
                   <CheckCircle className="h-8 w-8 text-green-600 mr-3" />
                   <div>
                     <p className="text-sm text-gray-500">High Matches</p>
-                    <p className="text-2xl font-bold">{applications.filter(app => app.fit_score >= 80).length}</p>
+                    <p className="text-2xl font-bold">
+                      {applications.filter((app) => app.fit_score >= 80).length}
+                    </p>
                   </div>
                 </div>
               </CardContent>
@@ -199,7 +218,10 @@ export default function ApplicationsPage() {
                   <div>
                     <p className="text-sm text-gray-500">Avg Score</p>
                     <p className="text-2xl font-bold">
-                      {Math.round(applications.reduce((acc, app) => acc + app.fit_score, 0) / applications.length) || 0}%
+                      {Math.round(
+                        applications.reduce((acc, app) => acc + app.fit_score, 0) / applications.length
+                      ) || 0}
+                      %
                     </p>
                   </div>
                 </div>
@@ -213,74 +235,115 @@ export default function ApplicationsPage() {
               <CardContent className="p-12 text-center">
                 <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">No Applications Yet</h3>
-                <p className="text-gray-500">Applications will appear here once candidates start applying to your jobs.</p>
+                <p className="text-gray-500">
+                  Applications will appear here once candidates start applying to your jobs.
+                </p>
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-6">
-              {jobGroups.map((group) => (
-                <Card key={group.job_id}>
-                  <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle className="text-xl">{group.job_title}</CardTitle>
-                        <p className="text-sm text-gray-600 mt-1">
-                          {group.applications.length} applicant{group.applications.length !== 1 ? 's' : ''}
-                        </p>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => router.push(`/recruiter/jobs/${group.job_id}`)}
-                      >
-                        <Eye className="h-4 w-4 mr-2" />
-                        View Job
-                      </Button>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="p-6">
-                    <div className="space-y-4">
-                      {group.applications.map((app) => (
-                        <div
-                          key={app.id}
-                          className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
-                          onClick={() => router.push(`/recruiter/applications/${app.id}`)}
-                        >
-                          <div className="flex-1">
-                            <div className="flex items-center space-x-3 mb-2">
-                              <h4 className="font-semibold text-gray-900">
-                                Candidate #{app.candidate_id.slice(0, 8)}
-                              </h4>
-                              {getStatusBadge(app.status || 'pending')}
-                            </div>
-                            <div className="flex items-center space-x-4 text-sm text-gray-500">
-                              <span className="flex items-center">
-                                <Clock className="h-4 w-4 mr-1" />
-                                Applied {formatDate(app.created_at)}
-                              </span>
-                              <span className={`flex items-center font-semibold ${getFitScoreColor(app.fit_score)}`}>
-                                <TrendingUp className="h-4 w-4 mr-1" />
-                                {app.fit_score}% Match
-                              </span>
-                            </div>
+            <div className="space-y-4">
+              {pagedGroups.map((group) => {
+                const isOpen = expandedGroups.has(group.job_id);
+                return (
+                  <Card key={group.job_id}>
+                    {/* Clickable header — acts as dropdown toggle */}
+                    <CardHeader
+                      className="bg-gradient-to-r from-blue-50 to-indigo-50 cursor-pointer select-none"
+                      onClick={() => toggleGroup(group.job_id)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          {isOpen ? (
+                            <ChevronUp className="h-5 w-5 text-gray-500" />
+                          ) : (
+                            <ChevronDown className="h-5 w-5 text-gray-500" />
+                          )}
+                          <div>
+                            <CardTitle className="text-xl">{group.job_title}</CardTitle>
+                            <p className="text-sm text-gray-600 mt-1">
+                              {group.applications.length} applicant
+                              {group.applications.length !== 1 ? 's' : ''}
+                              {!isOpen && ' — click to expand'}
+                            </p>
                           </div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              router.push(`/recruiter/applications/${app.id}`);
-                            }}
-                          >
-                            <Eye className="h-4 w-4 mr-2" />
-                            Review
-                          </Button>
                         </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            router.push(`/recruiter/jobs/${group.job_id}`);
+                          }}
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          View Job
+                        </Button>
+                      </div>
+                    </CardHeader>
+
+                    {/* Collapsible candidate list */}
+                    {isOpen && (
+                      <CardContent className="p-6">
+                        <div className="space-y-3">
+                          {group.applications.map((app) => (
+                            <div
+                              key={app.id}
+                              className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                              onClick={() => router.push(`/recruiter/applications/${app.id}`)}
+                            >
+                              <div className="flex-1">
+                                <div className="flex items-center space-x-3 mb-2">
+                                  <h4 className="font-semibold text-gray-900">
+                                    {app.candidate_name || `Candidate #${app.candidate_id.slice(0, 8)}`}
+                                  </h4>
+                                  {getStatusBadge(app.status || 'pending')}
+                                </div>
+                                <div className="flex items-center space-x-4 text-sm text-gray-500">
+                                  <span className="flex items-center">
+                                    <Clock className="h-4 w-4 mr-1" />
+                                    Applied {formatDate(app.created_at)}
+                                  </span>
+                                  <span
+                                    className={`flex items-center font-semibold ${getFitScoreColor(app.fit_score)}`}
+                                  >
+                                    <TrendingUp className="h-4 w-4 mr-1" />
+                                    {app.fit_score}% Match
+                                  </span>
+                                </div>
+                              </div>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  router.push(`/recruiter/applications/${app.id}`);
+                                }}
+                              >
+                                <Eye className="h-4 w-4 mr-2" />
+                                Review
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    )}
+                  </Card>
+                );
+              })}
+
+              {/* Pagination for job groups */}
+              <div className="bg-white rounded-lg px-4 py-3 shadow-sm border border-gray-200">
+                <Pagination
+                  currentPage={groupPage}
+                  totalPages={Math.ceil(jobGroups.length / GROUPS_PER_PAGE)}
+                  onPageChange={(p) => {
+                    setGroupPage(p);
+                    setExpandedGroups(new Set()); // collapse all when changing page
+                  }}
+                  totalItems={jobGroups.length}
+                  itemsPerPage={GROUPS_PER_PAGE}
+                />
+              </div>
             </div>
           )}
         </div>
