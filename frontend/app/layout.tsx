@@ -23,7 +23,8 @@ export default function RootLayout({
           <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
             <Navigation />
           <main className="flex-1 overflow-y-auto">
-              <div className="w-full max-w-7xl mx-auto px-4">
+              {/* Gutters match Navigation's container so page content lines up with the header */}
+              <div className="w-full mx-auto px-4 sm:px-6 lg:px-8">
                 {children}
               </div>
             </main>

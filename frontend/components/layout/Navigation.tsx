@@ -227,21 +227,28 @@ export function Navigation({ className }: NavigationProps) {
             </div>
 
             {/* Logo */}
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <h1 className="text-2xl font-bold text-gray-900">HRMS</h1>
-              </div>
-            </div>
+            <button
+              type="button"
+              onClick={() => router.push(navigationItems[0]?.href ?? '/')}
+              className="flex flex-shrink-0 items-center rounded-md transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              aria-label="Go to dashboard"
+            >
+              <span className="text-xl font-bold tracking-tight text-gray-900 sm:text-2xl">
+                HRMS
+              </span>
+            </button>
 
             {/* Desktop navigation */}
-            <div className="hidden lg:flex lg:ml-8 lg:space-x-1">
+            <div className="hidden lg:ml-8 lg:flex lg:items-center lg:gap-1">
               {navigationItems.map((item) => (
                 <Button
                   key={item.name}
                   variant={item.current ? 'secondary' : 'ghost'}
                   className={cn(
-                    'inline-flex items-center px-4 py-2 text-sm font-medium rounded-md transition-colors',
-                    item.current && 'bg-secondary text-secondary-foreground'
+                    'inline-flex items-center rounded-md px-3 text-sm font-medium transition-colors',
+                    item.current
+                      ? 'bg-secondary text-secondary-foreground'
+                      : 'text-gray-600 hover:text-gray-900'
                   )}
                   onClick={() => router.push(item.href)}
                 >
@@ -252,11 +259,14 @@ export function Navigation({ className }: NavigationProps) {
             </div>
           </div>
 
-          {/* Desktop user menu */}
-          <div className="hidden lg:flex lg:items-center lg:space-x-4">
+          {/* User menu — visible at every breakpoint so the header never looks unfinished */}
+          <div className="flex items-center gap-2 sm:gap-3 lg:gap-4">
             {session ? (
               <>
-                <Badge variant={getRoleBadgeVariant(userRole || '')} className="px-3 py-1">
+                <Badge
+                  variant={getRoleBadgeVariant(userRole || '')}
+                  className="hidden px-3 py-1 sm:inline-flex"
+                >
                   {userRole}
                 </Badge>
                 <DropdownMenu>
