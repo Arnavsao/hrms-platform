@@ -21,7 +21,7 @@ import {
   ArrowRight,
 } from 'lucide-react';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/+$/, '');
 
 const PLAYBACK_SAMPLE_RATE = 24000;
 const CAPTURE_SAMPLE_RATE = 16000;

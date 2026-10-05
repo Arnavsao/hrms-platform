@@ -1,7 +1,8 @@
 import axios from 'axios';
 
-// API base URL from environment variable
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+// API base URL from environment variable (trailing slashes stripped so
+// requests don't end up with a double slash like https://host//api/...)
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/+$/, '');
 
 // Validate API URL
 if (!API_BASE_URL || API_BASE_URL === 'undefined') {
