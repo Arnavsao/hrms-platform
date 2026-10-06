@@ -1,63 +1,27 @@
 #!/bin/bash
+# Creates backend/.env and frontend/.env.local from their templates.
+# Existing files are left untouched.
 
-# Setup script for HRMS Platform Environment Variables
+set -e
+cd "$(dirname "$0")"
 
-echo "Setting up environment variables for HRMS Platform..."
+if [ -f backend/.env ]; then
+  echo "backend/.env already exists, skipping"
+else
+  SECRET=$(python3 -c "import secrets; print(secrets.token_urlsafe(48))")
+  sed "s|^SECRET_KEY=.*|SECRET_KEY=${SECRET}|" backend/env.example > backend/.env
+  chmod 600 backend/.env
+  echo "Created backend/.env (with a generated SECRET_KEY)"
+fi
 
-# Create frontend .env.local file
-cat > frontend/.env.local << 'EOF'
-# Frontend Environment Variables
-# Update these values with your actual Supabase project details
+if [ -f frontend/.env.local ]; then
+  echo "frontend/.env.local already exists, skipping"
+else
+  cp frontend/env.example frontend/.env.local
+  chmod 600 frontend/.env.local
+  echo "Created frontend/.env.local"
+fi
 
-# Supabase Configuration
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
-
-# Backend API URL (for frontend to connect)
-NEXT_PUBLIC_API_URL=http://localhost:8000
-
-# Environment
-NODE_ENV=development
-EOF
-
-# Create backend .env file
-cat > backend/.env << 'EOF'
-# Backend Environment Variables
-# Update these values with your actual configuration
-
-# Supabase Configuration
-SUPABASE_SERVICE_KEY=your-service-key-here
-DATABASE_URL=postgresql://user:password@host:port/database
-
-# AI Configuration
-OPENROUTER_API_KEY=your-openrouter-api-key
-GEMINI_API_KEY=your-gemini-api-key
-
-# Environment
-PYTHON_ENV=development
-
-# Optional: File Upload Configuration
-MAX_FILE_SIZE=10485760  # 10MB in bytes
-ALLOWED_RESUME_FORMATS=pdf,doc,docx
-
-# Optional: AI Service Configuration
-AI_MODEL=google/gemini-2.0-flash
-AI_TEMPERATURE=0.7
-AI_MAX_TOKENS=2048
-
-# Optional: Rate Limiting
-RATE_LIMIT_PER_MINUTE=60
-
-# Optional: Logging
-LOG_LEVEL=INFO
-EOF
-
-echo "✅ Environment files created!"
 echo ""
-echo "📝 Next steps:"
-echo "1. Update frontend/.env.local with your Supabase project details"
-echo "2. Update backend/.env with your Supabase service key and database URL"
-echo "3. Add your AI API keys if you want to use AI features"
-echo ""
-echo "🔗 Get your Supabase credentials from: https://supabase.com/dashboard"
-echo "📖 See env.example files for reference values"
+echo "Next: fill in the Supabase and Gemini values in both files."
+echo "Supabase credentials: https://supabase.com/dashboard -> Project Settings -> API"
