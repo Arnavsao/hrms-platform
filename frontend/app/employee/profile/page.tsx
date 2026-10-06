@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import { api } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -31,16 +31,13 @@ export default function EmployeeProfilePage() {
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState<any>({});
 
-  useEffect(() => {
-    if (session?.user?.email) {
-      fetchEmployeeData();
-    }
-  }, [session]);
+  const sessionEmail = session?.user?.email;
 
-  const fetchEmployeeData = async () => {
+  const fetchEmployeeData = useCallback(async () => {
+    if (!sessionEmail) return;
     try {
       setLoading(true);
-      const employeeData = await api.getCurrentEmployee(session!.user.email);
+      const employeeData = await api.getCurrentEmployee(sessionEmail);
       setEmployee(employeeData);
       setFormData({
         name: employeeData.name,
@@ -52,7 +49,11 @@ export default function EmployeeProfilePage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [sessionEmail]);
+
+  useEffect(() => {
+    fetchEmployeeData();
+  }, [fetchEmployeeData]);
 
   const handleSave = async () => {
     if (!employee?.id) return;

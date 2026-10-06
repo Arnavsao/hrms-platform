@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import { api } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -43,16 +43,13 @@ export default function EmployeePayrollPage() {
   const [payrollHistory, setPayrollHistory] = useState<PayrollRecord[]>([]);
   const [selectedPayroll, setSelectedPayroll] = useState<PayrollRecord | null>(null);
 
-  useEffect(() => {
-    if (session?.user?.email) {
-      fetchEmployeeData();
-    }
-  }, [session]);
+  const sessionEmail = session?.user?.email;
 
-  const fetchEmployeeData = async () => {
+  const fetchEmployeeData = useCallback(async () => {
+    if (!sessionEmail) return;
     try {
       setLoading(true);
-      const employeeData = await api.getCurrentEmployee(session!.user.email);
+      const employeeData = await api.getCurrentEmployee(sessionEmail);
       setEmployee(employeeData);
 
       if (employeeData?.id) {
@@ -69,7 +66,11 @@ export default function EmployeePayrollPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [sessionEmail]);
+
+  useEffect(() => {
+    fetchEmployeeData();
+  }, [fetchEmployeeData]);
 
   const getStatusBadgeVariant = (status: string): "default" | "secondary" | "destructive" | "outline" => {
     switch (status.toLowerCase()) {

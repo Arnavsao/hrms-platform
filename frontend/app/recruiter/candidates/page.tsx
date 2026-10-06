@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -50,7 +50,6 @@ interface Candidate {
 export default function ViewCandidatesPage() {
   const router = useRouter();
   const [candidates, setCandidates] = useState<Candidate[]>([]);
-  const [filteredCandidates, setFilteredCandidates] = useState<Candidate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -59,16 +58,11 @@ export default function ViewCandidatesPage() {
     fetchCandidates();
   }, []);
 
-  useEffect(() => {
-    filterCandidates();
-  }, [searchQuery, candidates]);
-
   const fetchCandidates = async () => {
     try {
       setIsLoading(true);
       const data = await api.listCandidates();
       setCandidates(data);
-      setFilteredCandidates(data);
     } catch (err: any) {
       setError(err.response?.data?.detail || err.message || 'Failed to load candidates');
     } finally {
@@ -76,14 +70,13 @@ export default function ViewCandidatesPage() {
     }
   };
 
-  const filterCandidates = () => {
+  const filteredCandidates = useMemo(() => {
     if (!searchQuery.trim()) {
-      setFilteredCandidates(candidates);
-      return;
+      return candidates;
     }
 
     const query = searchQuery.toLowerCase();
-    const filtered = candidates.filter(candidate => {
+    return candidates.filter(candidate => {
       const nameMatch = candidate.name?.toLowerCase().includes(query);
       const emailMatch = candidate.email?.toLowerCase().includes(query);
       const skillsMatch = candidate.parsed_data?.skills?.some(skill =>
@@ -92,9 +85,7 @@ export default function ViewCandidatesPage() {
 
       return nameMatch || emailMatch || skillsMatch;
     });
-
-    setFilteredCandidates(filtered);
-  };
+  }, [searchQuery, candidates]);
 
   const handleViewProfile = (candidateId: string) => {
     router.push(`/candidates/${candidateId}`);

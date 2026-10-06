@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -35,21 +35,23 @@ export default function CandidateDetailPage({ params }: CandidateDetailPageProps
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchCandidateDetails();
-  }, [params.id]);
+  const candidateId = params.id;
 
-  const fetchCandidateDetails = async () => {
+  const fetchCandidateDetails = useCallback(async () => {
     try {
       setIsLoading(true);
-      const data = await api.getCandidate(params.id);
+      const data = await api.getCandidate(candidateId);
       setCandidate(data);
     } catch (err: any) {
       setError(err.response?.data?.detail || err.message || 'Failed to load candidate details');
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [candidateId]);
+
+  useEffect(() => {
+    fetchCandidateDetails();
+  }, [fetchCandidateDetails]);
 
   if (isLoading) {
     return (

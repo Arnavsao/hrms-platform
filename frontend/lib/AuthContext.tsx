@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { auth, UserSession } from '@/lib/auth';
 
@@ -15,6 +15,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<UserSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const initialLoadDone = useRef(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -25,6 +26,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       } catch (error) {
         console.error('Error fetching session:', error);
       } finally {
+        initialLoadDone.current = true;
         setIsLoading(false);
       }
     };
@@ -36,7 +38,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Only redirect to login when a previously-authenticated user signs out.
       // Do NOT redirect on initial page load with no session — that would
       // block unauthenticated users from visiting the public landing page.
-      if (!newSession && !isLoading) {
+      if (!newSession && initialLoadDone.current) {
         const publicPaths = ['/', '/login', '/signup'];
         const currentPath = window.location.pathname;
         if (!publicPaths.some((p) => currentPath === p || currentPath.startsWith(p + '/'))) {

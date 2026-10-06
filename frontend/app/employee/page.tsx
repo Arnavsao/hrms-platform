@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/AuthContext';
 import { api } from '@/lib/api';
@@ -26,18 +26,15 @@ export default function EmployeeDashboard() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<any>(null);
 
-  useEffect(() => {
-    if (session?.user?.email) {
-      fetchEmployeeData();
-    }
-  }, [session]);
+  const sessionEmail = session?.user?.email;
 
-  const fetchEmployeeData = async () => {
+  const fetchEmployeeData = useCallback(async () => {
+    if (!sessionEmail) return;
     try {
       setLoading(true);
 
       // Fetch employee profile
-      const employeeData = await api.getCurrentEmployee(session!.user.email);
+      const employeeData = await api.getCurrentEmployee(sessionEmail);
       setEmployee(employeeData);
 
       // Fetch employee profile with stats
@@ -50,7 +47,11 @@ export default function EmployeeDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [sessionEmail]);
+
+  useEffect(() => {
+    fetchEmployeeData();
+  }, [fetchEmployeeData]);
 
   const handleCheckIn = async () => {
     if (!employee?.id) return;

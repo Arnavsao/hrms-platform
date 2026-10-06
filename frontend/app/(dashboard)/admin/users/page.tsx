@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -45,7 +45,6 @@ interface User {
 export default function UserManagementPage() {
   const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
-  const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
@@ -60,10 +59,6 @@ export default function UserManagementPage() {
     fetchUsers();
   }, []);
 
-  useEffect(() => {
-    filterUsers();
-  }, [users, searchQuery, roleFilter, statusFilter]);
-
   const fetchUsers = async () => {
     setIsLoading(true);
     try {
@@ -77,7 +72,7 @@ export default function UserManagementPage() {
     }
   };
 
-  const filterUsers = () => {
+  const filteredUsers = useMemo(() => {
     let filtered = [...users];
 
     // Role filter
@@ -99,8 +94,8 @@ export default function UserManagementPage() {
       );
     }
 
-    setFilteredUsers(filtered);
-  };
+    return filtered;
+  }, [users, searchQuery, roleFilter, statusFilter]);
 
   const handleDeleteUser = async () => {
     if (!selectedUser) return;

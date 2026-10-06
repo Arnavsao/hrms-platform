@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -275,29 +275,7 @@ export default function CandidateProfilePage() {
   const experience = watch('experience') || [];
   const education = watch('education') || [];
 
-  // Load existing candidate profile on mount
-  useEffect(() => {
-    loadCandidateProfile();
-  }, [session?.user?.email]);
-
-  const loadCandidateProfile = async () => {
-    try {
-      // Try to get candidate by email from session, fallback to localStorage
-      const userEmail = session?.user?.email || localStorage.getItem('userEmail');
-      if (userEmail) {
-        const candidate = await api.getCandidateByEmail(userEmail);
-        if (candidate) {
-          setCandidateId(candidate.id);
-          populateFormFromCandidate(candidate);
-          setIsEditing(false);
-        }
-      }
-    } catch (err) {
-      setIsEditing(true);
-    }
-  };
-
-  const populateFormFromCandidate = (candidate: any) => {
+  const populateFormFromCandidate = useCallback((candidate: any) => {
     const parsedData = candidate.parsed_data;
     if (parsedData) {
       setValue('name', parsedData.name || '');
@@ -312,7 +290,31 @@ export default function CandidateProfilePage() {
         portfolio: parsedData.links?.portfolio || '',
       });
     }
-  };
+  }, [setValue]);
+
+  const sessionEmail = session?.user?.email;
+
+  const loadCandidateProfile = useCallback(async () => {
+    try {
+      // Try to get candidate by email from session, fallback to localStorage
+      const userEmail = sessionEmail || localStorage.getItem('userEmail');
+      if (userEmail) {
+        const candidate = await api.getCandidateByEmail(userEmail);
+        if (candidate) {
+          setCandidateId(candidate.id);
+          populateFormFromCandidate(candidate);
+          setIsEditing(false);
+        }
+      }
+    } catch (err) {
+      setIsEditing(true);
+    }
+  }, [sessionEmail, populateFormFromCandidate]);
+
+  // Load existing candidate profile on mount
+  useEffect(() => {
+    loadCandidateProfile();
+  }, [loadCandidateProfile]);
 
   const onDrop = async (acceptedFiles: File[], fileRejections: any[]) => {
     setError(null);

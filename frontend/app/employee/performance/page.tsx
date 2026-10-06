@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import { api } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -66,16 +66,13 @@ export default function EmployeePerformancePage() {
   const [selfReview, setSelfReview] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    if (session?.user?.email) {
-      fetchEmployeeData();
-    }
-  }, [session]);
+  const sessionEmail = session?.user?.email;
 
-  const fetchEmployeeData = async () => {
+  const fetchEmployeeData = useCallback(async () => {
+    if (!sessionEmail) return;
     try {
       setLoading(true);
-      const employeeData = await api.getCurrentEmployee(session!.user.email);
+      const employeeData = await api.getCurrentEmployee(sessionEmail);
       setEmployee(employeeData);
 
       if (employeeData?.id) {
@@ -92,7 +89,11 @@ export default function EmployeePerformancePage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [sessionEmail]);
+
+  useEffect(() => {
+    fetchEmployeeData();
+  }, [fetchEmployeeData]);
 
   const handleOpenSelfReview = (review: PerformanceReview) => {
     setSelectedReview(review);
